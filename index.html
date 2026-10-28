@@ -364,6 +364,21 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
 
   <!-- GOALS -->
   <div class="view" id="v-goals" hidden>
+    <section class="card" aria-labelledby="h-ship">
+      <h2 id="h-ship">Ship time<span class="right" id="shipOffTxt"></span></h2>
+      <div class="stats">
+        <div><b id="shipClock">–</b><span>App time (sets what “today” is)</span></div>
+        <div><b id="phoneClock">–</b><span>Phone time</span></div>
+      </div>
+      <p class="muted" style="margin:0">After a time zone change, adjust until App time matches the ship's clock.</p>
+      <div class="grid2">
+        <button type="button" id="offHm">− 1 hour</button>
+        <button type="button" id="offHp">+ 1 hour</button>
+        <button type="button" id="offDm">− 1 day</button>
+        <button type="button" id="offDp">+ 1 day</button>
+      </div>
+      <button type="button" id="offReset">Match phone time</button>
+    </section>
     <section class="card">
       <h2>Goals</h2>
       <p class="muted" style="margin:0" id="goalsFor"></p>
@@ -418,7 +433,7 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
   function parse(s) { var p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
   function addDays(s, n) { var d = parse(s); d.setDate(d.getDate() + n); return iso(d); }
   function monday(s) { var d = parse(s); var w = (d.getDay() + 6) % 7; d.setDate(d.getDate() - w); return iso(d); }
-  var TODAY = iso(new Date());
+  var TODAY;
 
   function fresh() {
     return {
@@ -437,6 +452,10 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
   if (!S.days) S.days = {};
   if (!S.templates) S.templates = [];
   if (S.cutMax == null) S.cutMax = 3;
+  if (S.hourOffset == null) S.hourOffset = 0;
+  function shipNow() { return new Date(Date.now() + S.hourOffset * 3600000); }
+  function nowDay() { return iso(shipNow()); }
+  TODAY = nowDay();
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
 
   var sel = TODAY, tab = 'day', mCur = TODAY.slice(0, 7), editing = null;
@@ -464,7 +483,7 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
     var label = sel === TODAY ? 'Today' : sel === addDays(TODAY, -1) ? 'Yesterday' : d.toLocaleDateString(undefined, { weekday: 'long' });
     $('dateTitle').innerHTML = '';
     $('dateTitle').appendChild(document.createTextNode(label));
-    var sub = el('span', 'sub', d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }));
+    var sub = el('span', 'sub', d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) + (S.hourOffset ? ' · ship time ' + fmtOff(S.hourOffset) : ''));
     $('dateTitle').appendChild(sub);
     $('datePick').value = sel;
 
@@ -723,6 +742,7 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
     var g = goalFor(sel);
     $('goalsFor').textContent = 'Showing goals for ' + parse(sel).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) + '.';
     renderTemplatesList();
+    renderShipClock();
     if (!renderGoals.editing) {
       $('gWater').value = g.water; $('gProtein').value = g.protein; $('gSleep').value = g.sleep; $('gWork').value = g.work;
       $('gCut').value = S.cutMax;
@@ -1026,6 +1046,34 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
   $('mPrev').onclick = function () { shiftMonth(-1); };
   $('mNext').onclick = function () { shiftMonth(1); };
 
+  /* ---------- Ship time ---------- */
+  function fmtOff(h) {
+    var sign = h > 0 ? '+' : '−', a = Math.abs(h), d = Math.floor(a / 24), r = a % 24;
+    return sign + [d ? d + 'd' : '', r || !d ? r + 'h' : ''].filter(Boolean).join(' ');
+  }
+  function clockTxt(dt) {
+    return dt.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) + ' ' +
+      String(dt.getHours()).padStart(2, '0') + String(dt.getMinutes()).padStart(2, '0');
+  }
+  function renderShipClock() {
+    $('shipClock').textContent = clockTxt(shipNow());
+    $('phoneClock').textContent = clockTxt(new Date());
+    $('shipOffTxt').textContent = S.hourOffset ? fmtOff(S.hourOffset) + ' from phone' : 'Same as phone';
+  }
+  function setOffset(h) {
+    var wasToday = sel === TODAY;
+    S.hourOffset = Math.max(-72, Math.min(72, h));
+    TODAY = nowDay();
+    if (wasToday) sel = TODAY;
+    save(); render();
+    toast('Today is ' + parse(TODAY).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }));
+  }
+  $('offHm').onclick = function () { setOffset(S.hourOffset - 1); };
+  $('offHp').onclick = function () { setOffset(S.hourOffset + 1); };
+  $('offDm').onclick = function () { setOffset(S.hourOffset - 24); };
+  $('offDp').onclick = function () { setOffset(S.hourOffset + 24); };
+  $('offReset').onclick = function () { setOffset(0); };
+
   /* ---------- Tabs, red mode ---------- */
   ['day', 'week', 'month', 'goals'].forEach(function (t) {
     $('t-' + t).onclick = function () { if (t === 'month') mCur = sel.slice(0, 7); tab = t; render(); window.scrollTo(0, 0); };
@@ -1047,7 +1095,7 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
   syncWType();
 
   // Refresh "today" if the app stays open past midnight
-  setInterval(function () { var t = iso(new Date()); if (t !== TODAY) { var wasToday = sel === TODAY; TODAY = t; if (wasToday) sel = t; render(); } }, 60000);
+  setInterval(function () { if (tab === 'goals') renderShipClock(); var t = nowDay(); if (t !== TODAY) { var wasToday = sel === TODAY; TODAY = t; if (wasToday) sel = t; render(); } }, 60000);
 
   render();
 })();
