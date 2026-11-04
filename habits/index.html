@@ -106,6 +106,14 @@ svg.chart text { font-family: var(--font-ui); font-size: 10px; fill: var(--muted
 .heat .hd { background: none; aspect-ratio: auto; font-size: 0.65rem; color: var(--muted); text-align: center; }
 .heat .td { outline: 2px solid var(--accent); outline-offset: -2px; }
 
+/* Work tasks */
+.task { display: flex; align-items: center; gap: 6px; }
+.task .habit { flex: 1; min-width: 0; min-height: 48px; }
+.task .habit .name { overflow-wrap: anywhere; }
+.task .del { min-width: 44px; padding: 0; color: var(--muted); }
+.carry { font-size: 0.7rem; color: var(--warn); font-family: var(--font-num); }
+.tag { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
 /* Habit editor */
 .edit { display: flex; gap: 6px; align-items: center; }
 .edit input { flex: 1; }
@@ -132,6 +140,15 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
       <h2>Self-care <span class="right" id="doneCount"></span></h2>
       <div class="progress"><i id="bar"></i></div>
       <div class="habits" id="habitList"></div>
+    </section>
+
+    <section class="card">
+      <h2>Work <span class="right" id="workCount"></span></h2>
+      <div class="habits" id="workList"></div>
+      <div class="rlabel">Work to get done</div>
+      <div class="habits" id="taskList"></div>
+      <div class="edit"><input type="text" id="newTask" placeholder="Add work to do" maxlength="80"><button type="button" class="btn-primary" id="addTask" aria-label="Add task">+</button></div>
+      <p class="muted" style="margin:0">Anything you don’t finish carries over to tomorrow. “All work done” checks itself when the list is clear.</p>
     </section>
 
     <section class="card">
@@ -221,11 +238,21 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
   var ENERGY = ['Drained', 'Tired', 'Okay', 'Good', 'Charged'];
 
   function fresh() {
-    var names = ['Workout', 'Slept 7+ hours', 'Hit water goal', 'Read 10 min', 'Shower + skincare', 'No doomscrolling', 'Tidied my rack'];
+    var names = ['Workout', 'Slept 7+ hours', 'Hit water goal', 'Read 10 min', 'Shower + skincare', 'Tidied my rack'];
     return { habits: names.map(function (n, i) { return { id: 'h' + i, name: n, off: false }; }), days: {}, red: false, next: names.length };
   }
   var S;
   try { S = JSON.parse(localStorage.getItem(KEY)) || fresh(); } catch (e) { S = fresh(); }
+  /* v2: drop doomscrolling, add work habits and a task list */
+  function migrate() {
+    if (S.v2) return;
+    S.habits.forEach(function (h) { if (/doomscroll/i.test(h.name)) h.off = true; });
+    S.habits.push({ id: 'w0', name: 'Got checkouts', off: false, work: true });
+    S.habits.push({ id: 'w1', name: 'All work done today', off: false, work: true, auto: true });
+    S.tasks = S.tasks || []; S.v2 = true;
+  }
+  migrate();
+  function uid() { return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('Could not save'); } }
 
   /* ---------- Dates ---------- */
@@ -255,6 +282,25 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
 
   function toast(msg) { var t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(function () { t.hidden = true; }, 1600); }
 
+  /* ---------- Work tasks ----------
+     One running list. A task shows on every day from when it was added until the day it was checked off,
+     so unfinished work carries over by itself. */
+  function tasksFor(k) {
+    return (S.tasks || []).filter(function (t) { return t.added <= k && (!t.done || t.done >= k); });
+  }
+  function syncWork(k) {
+    var auto = S.habits.filter(function (h) { return h.auto && !h.off; })[0]; if (!auto) return;
+    var ts = tasksFor(k);
+    if (ts.length) day(k).done[auto.id] = ts.every(function (t) { return t.done === k; });
+  }
+  function addTask() {
+    var v = $('newTask').value.trim(); if (!v) return;
+    S.tasks.push({ id: uid(), text: v, added: cur, done: null });
+    $('newTask').value = ''; syncWork(cur); save(); renderDay();
+  }
+  $('addTask').onclick = addTask;
+  $('newTask').onkeydown = function (e) { if (e.key === 'Enter') addTask(); };
+
   /* ---------- Today ---------- */
   function renderDay() {
     var d = parse(cur);
@@ -265,9 +311,10 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
     $('next').style.opacity = cur >= TODAY ? 0.3 : 1;
 
     var dd = peek(cur) || { done: {}, mood: 0, energy: 0, note: '' };
-    var hs = active(), n = 0, list = $('habitList');
-    list.innerHTML = '';
-    hs.forEach(function (h) {
+    var all = active(), n = 0;
+    var care = all.filter(function (h) { return !h.work; }), work = all.filter(function (h) { return h.work; });
+    var tasks = tasksFor(cur);
+    function habitBtn(h, list) {
       var on = !!dd.done[h.id]; if (on) n++;
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'habit' + (on ? ' on' : '');
@@ -275,12 +322,32 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
       var s = streak(h.id);
       b.innerHTML = '<span class="box">' + (on ? '✓' : '') + '</span><span class="name"></span>' + (s > 1 ? '<span class="streak">' + s + ' day streak</span>' : '');
       b.querySelector('.name').textContent = h.name;
-      b.onclick = function () { var x = day(cur); x.done[h.id] = !x.done[h.id]; save(); renderDay(); };
+      if (h.auto && tasks.length) b.onclick = function () { toast(on ? 'Clears when a task is unchecked' : 'Checks itself when every task is done'); };
+      else b.onclick = function () { var x = day(cur); x.done[h.id] = !x.done[h.id]; save(); renderDay(); };
       list.appendChild(b);
+    }
+    $('habitList').innerHTML = ''; $('workList').innerHTML = '';
+    care.forEach(function (h) { habitBtn(h, $('habitList')); });
+    var careDone = n;
+    work.forEach(function (h) { habitBtn(h, $('workList')); });
+    if (!care.length) $('habitList').innerHTML = '<p class="muted" style="margin:0">No habits yet. Add some on the Habits tab.</p>';
+    $('doneCount').textContent = careDone + ' / ' + care.length;
+    $('bar').style.width = all.length ? (n / all.length * 100) + '%' : '0';
+
+    var tl = $('taskList'), tDone = 0; tl.innerHTML = '';
+    tasks.forEach(function (t) {
+      var on = t.done === cur; if (on) tDone++;
+      var r = document.createElement('div'); r.className = 'task';
+      var age = Math.round((parse(cur) - parse(t.added)) / 864e5);
+      r.innerHTML = '<button type="button" class="habit' + (on ? ' on' : '') + '" aria-pressed="' + on + '"><span class="box">' + (on ? '✓' : '') + '</span><span class="name"></span>' +
+        (age > 0 && !on ? '<span class="carry">' + age + 'd old</span>' : '') + '</button><button type="button" class="del" aria-label="Delete task">✕</button>';
+      r.querySelector('.name').textContent = t.text;
+      r.querySelector('.habit').onclick = function () { t.done = on ? null : cur; syncWork(cur); save(); renderDay(); };
+      r.querySelector('.del').onclick = function () { if (confirm('Delete "' + t.text + '"?')) { S.tasks.splice(S.tasks.indexOf(t), 1); syncWork(cur); save(); renderDay(); } };
+      tl.appendChild(r);
     });
-    if (!hs.length) list.innerHTML = '<p class="muted" style="margin:0">No habits yet. Add some on the Habits tab.</p>';
-    $('doneCount').textContent = n + ' / ' + hs.length;
-    $('bar').style.width = hs.length ? (n / hs.length * 100) + '%' : '0';
+    if (!tasks.length) tl.innerHTML = '<p class="muted" style="margin:0">Nothing on the list.</p>';
+    $('workCount').textContent = tasks.length ? tDone + ' / ' + tasks.length + ' tasks' : '';
 
     rate($('rMood'), MOODS, dd.mood, function (v) { day(cur).mood = v; });
     rate($('rEnergy'), ENERGY, dd.energy, function (v) { day(cur).energy = v; });
@@ -456,6 +523,8 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
       var r = document.createElement('div'); r.className = 'edit';
       r.innerHTML = '<input type="text" maxlength="40" aria-label="Habit name"><button type="button" aria-label="Move up">↑</button><button type="button" aria-label="Remove">✕</button>';
       var inp = r.querySelector('input'); inp.value = h.name;
+      if (h.work) inp.placeholder = 'Work habit';
+      if (h.work) { var tg = document.createElement('span'); tg.className = 'tag'; tg.textContent = 'Work'; r.insertBefore(tg, r.children[1]); }
       inp.onchange = function () { var v = inp.value.trim(); if (v) { h.name = v; save(); } else inp.value = h.name; };
       var bs = r.querySelectorAll('button');
       bs[0].disabled = i === 0; bs[0].style.opacity = i === 0 ? 0.3 : 1;
@@ -484,7 +553,7 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
     try {
       var d = JSON.parse($('bText').value);
       if (!d || !d.days || !d.habits) throw 0;
-      S = d; save(); $('bText').value = ''; $('bMsg').textContent = 'Restored'; applyRed(); renderSet();
+      S = d; migrate(); save(); $('bText').value = ''; $('bMsg').textContent = 'Restored'; applyRed(); renderSet();
     } catch (e) { $('bMsg').textContent = 'That doesn’t look like a backup. Paste the full copied text.'; }
   };
 
