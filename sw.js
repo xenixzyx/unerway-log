@@ -1,5 +1,5 @@
 // Saves the app on the phone so it opens with no signal.
-var CACHE = 'underway-log-v4';
+var CACHE = 'underway-log-v5';
 var FILES = ['./', 'index.html', 'manifest.json', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', function (e) {

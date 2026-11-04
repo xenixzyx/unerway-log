@@ -8,222 +8,369 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Log">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0c1116">
+<meta name="theme-color" content="#000000">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
 <style>
-/* Layout: sticky date bar on top, one scrolling column of log sections, fixed tab bar at bottom (Today / Week / Goals). System fonts only so it works with no signal. */
+/* Design: iOS-style grouped lists, large titles, frosted tab bar.
+   Motion: 100–150ms for tap feedback, ~250ms for transitions, ease-out on enter, faster exits,
+   spring only on the check mark. Everything respects Reduce Motion. */
 :root {
-  --bg: #edf0f2;
-  --surface: #ffffff;
-  --sunk: #e2e7ea;
-  --fg: #142029;
-  --muted: #5b6975;
-  --line: #d2d9de;
-  --accent: #1d6a86;
-  --accent-fg: #ffffff;
-  --water: #2c86c9;
-  --protein: #b5651d;
-  --sleep: #5b5bb0;
-  --lift: #2f8a57;
-  --weight: #b8407a;
-  --good: #2f8a57;
-  --warn: #b98a12;
-  --danger: #b23a2e;
+  --bg: #f2f2f7; --surface: #ffffff; --sunk: #e9e9ee; --fg: #1c1c1e; --muted: #8a8a8e; --line: rgba(60,60,67,.16);
+  --accent: #0a7ea4; --accent-fg: #ffffff; --good: #28a745; --warn: #e08a00; --danger: #e5383b;
+  --mood: #e0457b; --energy: #d9a300; --ring-track: #e5e5ea;
+  --water: #1f7fd1; --protein: #c26a1c; --sleep: #5e5ce6; --lift: #28a745; --weight: #d63d84;
   --font-ui: -apple-system, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif;
-  --font-num: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  --font-num: -apple-system, "SF Pro Rounded", "SF Pro Display", system-ui, sans-serif;
+  --ease-out: cubic-bezier(.2, .8, .2, 1); --ease-in: cubic-bezier(.4, 0, 1, 1); --spring: cubic-bezier(.34, 1.56, .64, 1);
+  --r-card: 18px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0c1116; --surface: #151d25; --sunk: #0f161c; --fg: #e3e9ee; --muted: #8796a3;
-    --line: #25313b; --accent: #4fa7c6; --accent-fg: #05131a;
-    --water: #4ea6e6; --protein: #e0904a; --sleep: #8f8fe6; --lift: #4fbf80; --weight: #e57aa9;
-    --good: #4fbf80; --warn: #e0b443; --danger: #e46a5d;
-    color-scheme: dark;
+    --bg: #000; --surface: #1c1c1e; --sunk: #2c2c2e; --fg: #f5f5f7; --muted: #8e8e93; --line: rgba(84,84,88,.55);
+    --accent: #40b8de; --accent-fg: #00131a; --good: #30d158; --warn: #ff9f0a; --danger: #ff453a;
+    --mood: #ff5e8e; --energy: #ffd60a; --ring-track: #2c2c2e;
+    --water: #4ea6e6; --protein: #ff9f45; --sleep: #8f8fff; --lift: #30d158; --weight: #ff6fae; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0c1116; --surface: #151d25; --sunk: #0f161c; --fg: #e3e9ee; --muted: #8796a3;
-  --line: #25313b; --accent: #4fa7c6; --accent-fg: #05131a;
-  --water: #4ea6e6; --protein: #e0904a; --sleep: #8f8fe6; --lift: #4fbf80; --weight: #e57aa9;
-  --good: #4fbf80; --warn: #e0b443; --danger: #e46a5d;
-  color-scheme: dark;
+  --bg: #000; --surface: #1c1c1e; --sunk: #2c2c2e; --fg: #f5f5f7; --muted: #8e8e93; --line: rgba(84,84,88,.55);
+  --accent: #40b8de; --accent-fg: #00131a; --good: #30d158; --warn: #ff9f0a; --danger: #ff453a;
+  --mood: #ff5e8e; --energy: #ffd60a; --ring-track: #2c2c2e;
+    --water: #4ea6e6; --protein: #ff9f45; --sleep: #8f8fff; --lift: #30d158; --weight: #ff6fae; color-scheme: dark;
 }
-/* Red light mode for when the boat is rigged for red */
 :root.red, :root.red[data-theme] {
-  --bg: #000; --surface: #110000; --sunk: #080000; --fg: #ff3b2f; --muted: #a8261c;
-  --line: #3a0905; --accent: #d01b0f; --accent-fg: #000;
-  --water: #ff3b2f; --protein: #d01b0f; --sleep: #a8261c; --lift: #ff3b2f; --weight: #d01b0f;
-  --good: #ff3b2f; --warn: #d01b0f; --danger: #ff6a5f;
-  color-scheme: dark;
+  --bg: #000; --surface: #120000; --sunk: #200000; --fg: #ff3b2f; --muted: #a3261c; --line: #3a0905;
+  --accent: #e0291b; --accent-fg: #000; --good: #ff3b2f; --warn: #d01b0f; --danger: #ff6a5f;
+  --mood: #ff3b2f; --energy: #a8261c; --ring-track: #2a0000;
+  --water: #ff3b2f; --protein: #d01b0f; --sleep: #a8261c; --lift: #ff3b2f; --weight: #d01b0f; color-scheme: dark;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { height: 100%; }
-body {
-  margin: 0;
-  background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 16px;
-  -webkit-tap-highlight-color: transparent;
-}
-body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
-.wrap {
-  max-width: 600px; margin: 0 auto;
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: env(safe-area-inset-top, 0px) calc(96px + env(safe-area-inset-bottom, 0px));
-}
-button, input, select, textarea { font: inherit; color: inherit; }
-button {
-  border: 1px solid var(--line); background: var(--surface); border-radius: 10px;
-  min-height: 44px; padding: 0 14px; cursor: pointer;
-}
-button:active { transform: scale(0.98); }
-button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.btn-primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
-input[type=text], input[type=number], input[type=date], select, textarea {
-  background: var(--sunk); border: 1px solid var(--line); border-radius: 10px;
-  min-height: 44px; padding: 0 10px; min-width: 0; width: 100%;
-}
-textarea { padding: 10px; min-height: 96px; resize: vertical; line-height: 1.45; }
-label.f { display: flex; flex-direction: column; gap: 4px; font-size: 0.78rem; color: var(--muted); min-width: 0; }
-
-/* Date bar */
-.datebar {
-  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--bg);
-  padding-block: 10px 8px; display: flex; flex-direction: column; gap: 8px;
-}
-.datehead { display: flex; align-items: center; gap: 8px; }
-.datehead h1 { margin: 0; font-size: 1.2rem; flex: 1; min-width: 0; text-wrap: balance; }
-.datehead .sub { display: block; font-size: 0.75rem; color: var(--muted); font-weight: 400; letter-spacing: 0.04em; text-transform: uppercase; }
-.icon-btn { min-width: 44px; padding: 0; position: relative; z-index: 2; }
-.icon-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
-.datepick { position: relative; min-width: 44px; height: 44px; overflow: hidden; border-radius: 10px; }
-.datepick input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; min-width: 0; max-width: 100%; -webkit-appearance: none; appearance: none; padding: 0; margin: 0; border: 0; }
-.datepick span { display: flex; align-items: center; justify-content: center; height: 100%; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 0 10px; font-size: 0.85rem; }
-.strip { display: grid; grid-template-columns: 36px repeat(7, 1fr) 36px; gap: 4px; align-items: stretch; }
-.strip button { min-height: 52px; padding: 2px 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 0.7rem; }
-.strip .nav { font-size: 1.1rem; }
-.strip .d { font-family: var(--font-num); font-size: 1rem; font-variant-numeric: tabular-nums; }
-.strip .sel { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
-.strip .today:not(.sel) { border-color: var(--accent); }
-.dots { display: flex; gap: 2px; height: 5px; }
-.dots i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0.85; }
-
-/* Sections */
-.view { display: flex; flex-direction: column; gap: 14px; padding-top: 6px; }
-section.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
-.card h2 { margin: 0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px; }
-.card h2 .sw { width: 10px; height: 10px; border-radius: 3px; }
-.card h2 .right { margin-left: auto; font-family: var(--font-num); font-size: 0.85rem; letter-spacing: 0; text-transform: none; color: var(--muted); }
-.big { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 2rem; line-height: 1; }
-.big small { font-size: 0.9rem; color: var(--muted); }
-.bar { height: 8px; background: var(--sunk); border-radius: 99px; overflow: hidden; }
-.bar > i { display: block; height: 100%; border-radius: 99px; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 17px; line-height: 1.35;
+  -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 600px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)); }
+button, input, textarea { font: inherit; color: inherit; }
+button { border: none; background: var(--surface); border-radius: 12px; min-height: 44px; padding: 0 16px; cursor: pointer;
+  touch-action: manipulation; -webkit-user-select: none; user-select: none;
+  transition: transform 120ms var(--ease-out), background-color 150ms, opacity 150ms; }
+button:active { transform: scale(.97); }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:disabled { opacity: .3; }
+button.btn-primary, .row button.btn-primary, .grid2 button.btn-primary, .edit button.btn-primary, #v-day .row button.btn-primary { background: var(--accent); color: var(--accent-fg); font-weight: 600; }
+input[type=text], textarea { background: var(--sunk); border: none; border-radius: 12px; min-height: 44px; padding: 0 12px; width: 100%; min-width: 0; font-size: 16px; }
+textarea { padding: 12px; min-height: 80px; resize: none; line-height: 1.45; }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.list { display: flex; flex-direction: column; gap: 6px; }
-.item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--sunk); border-radius: 10px; min-width: 0; }
-.item .t { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.item .t small { display: block; color: var(--muted); font-size: 0.8rem; }
-.item .v { font-family: var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.x { min-height: 32px; min-width: 32px; padding: 0; border-radius: 8px; color: var(--muted); font-size: 0.9rem; }
+.grid2 button, .row button { background: var(--sunk); }
 .muted { color: var(--muted); font-size: 0.85rem; }
-.empty { color: var(--muted); font-size: 0.85rem; padding: 6px 2px; }
 
-/* Water slider */
+/* Large-title header, frosted when scrolled */
+.datebar { position: sticky; top: 0; z-index: 20; margin: 0 calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) max(16px, env(safe-area-inset-left, 0px)) 10px;
+  background: color-mix(in srgb, var(--bg) 82%, transparent); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+  display: flex; align-items: flex-end; gap: 8px; }
+.datebar h1 { margin: 0; flex: 1; min-width: 0; font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; text-align: left; }
+.datebar h1 .sub { display: block; font-size: 0.78rem; font-weight: 600; color: var(--accent); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 2px; }
+#dTitleBtn { background: none; min-height: 0; padding: 0; font: inherit; color: inherit; text-align: left; border-radius: 6px; }
+.icon-btn { min-width: 40px; min-height: 40px; width: 40px; padding: 0; border-radius: 50%; background: var(--surface); font-size: 1.3rem; line-height: 1; display: flex; align-items: center; justify-content: center; color: var(--accent); }
+
+.view { display: flex; flex-direction: column; gap: 14px; }
+.view.enter > *:not(.datebar) { animation: rise 260ms var(--ease-out) both; }
+.view.enter > *:nth-child(2) { animation-delay: 20ms; } .view.enter > *:nth-child(3) { animation-delay: 40ms; }
+.view.enter > *:nth-child(4) { animation-delay: 60ms; } .view.enter > *:nth-child(5) { animation-delay: 80ms; }
+.view.enter > *:nth-child(n+6) { animation-delay: 100ms; }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.slide-l { animation: slideL 220ms var(--ease-out) both; } .slide-r { animation: slideR 220ms var(--ease-out) both; }
+@keyframes slideL { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+@keyframes slideR { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
+
+section.card { background: var(--surface); border-radius: var(--r-card); padding: 16px; display: flex; flex-direction: column; gap: 12px; transition: box-shadow 250ms var(--ease-out); }
+.card h2 { margin: 0; font-size: 0.78rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; display: flex; align-items: center; gap: 8px; }
+.card h2 .right { margin-left: auto; font-size: 0.85rem; letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; }
+
+/* Hero: today's ring */
+.hero { flex-direction: row !important; align-items: center; gap: 18px !important; }
+.hero svg { width: 108px; height: 108px; flex: none; transform: rotate(-90deg); }
+.hero .track { stroke: var(--ring-track); }
+.hero .arc { stroke: var(--good); stroke-linecap: round; transition: stroke-dashoffset 600ms var(--ease-out); }
+.hero .ringwrap { position: relative; width: 108px; height: 108px; flex: none; }
+.hero .pct { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.hero .pct b { font-family: var(--font-num); font-size: 1.7rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.hero .pct span { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.hero .side { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.hero .side .big { font-size: 1.25rem; font-weight: 700; }
+.hero.full .arc { stroke: var(--good); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--good) 60%, transparent)); }
+
+/* Reminder */
+#pushCard { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 26%, var(--surface)), var(--surface) 75%); box-shadow: inset 3px 0 0 var(--accent); }
+#pushCard h2 { color: var(--accent); }
+#pushLine { font-size: 1.3rem !important; font-weight: 800 !important; letter-spacing: -0.01em; }
+#pushLine.swap { animation: rise 220ms var(--ease-out) both; }
+#pushNext { background: color-mix(in srgb, var(--accent) 16%, var(--sunk)); color: var(--accent); font-weight: 600; min-height: 40px; }
+
+/* Grouped list rows */
+.habits { display: flex; flex-direction: column; margin: 0 -16px; }
+.habits > * + * { border-top: 0.5px solid var(--line); }
+.habits > p { padding: 0 16px; border: none !important; }
+.habit { display: flex; align-items: center; gap: 14px; text-align: left; min-height: 52px; padding: 8px 16px; width: 100%;
+  background: none; border-radius: 0; font-size: 1rem; }
+.habit:active { transform: none; background: var(--sunk); }
+.habit .box { width: 26px; height: 26px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--muted) 70%, transparent); flex: none;
+  display: flex; align-items: center; justify-content: center; color: #fff; font-size: 0.85rem; font-weight: 800;
+  transition: background-color 150ms, border-color 150ms; }
+.habit .name { flex: 1; min-width: 0; transition: color 200ms, opacity 200ms; }
+.habit .streak { font-size: 0.78rem; color: var(--warn); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.habit.on .box { background: var(--good); border-color: var(--good); }
+.habit.on .name { color: var(--muted); }
+.habit.just .box { animation: pop 320ms var(--spring); }
+.habit.just.on .name { animation: fadeDone 250ms var(--ease-out); }
+@keyframes pop { 0% { transform: scale(.6); } 100% { transform: scale(1); } }
+@keyframes fadeDone { from { color: var(--fg); } to { color: var(--muted); } }
+
+/* Tasks */
+.task { display: flex; align-items: center; }
+.task .habit { flex: 1; min-width: 0; }
+.task .habit .name { overflow-wrap: anywhere; }
+.task .del { min-width: 44px; padding: 0; background: none; color: var(--muted); border-radius: 0; font-size: 0.95rem; }
+.carry { font-size: 0.72rem; color: var(--warn); font-weight: 600; white-space: nowrap; }
+.tag { font-size: 0.68rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
+.task.out { animation: out 160ms var(--ease-in) both; }
+@keyframes out { to { opacity: 0; transform: translateX(-24px); } }
+
+/* Ratings */
+.rlabel { font-size: 0.85rem; color: var(--muted); font-weight: 600; }
+.rate { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.rate button { padding: 0; min-height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  background: var(--sunk); font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.rate button small { font-size: 0.62rem; color: var(--muted); font-weight: 500; }
+.rate button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); animation: pop 260ms var(--spring); }
+.rate button[aria-pressed="true"] small { color: var(--accent-fg); opacity: .8; }
+
+/* Week strip */
+.week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.week button { min-height: 64px; padding: 6px 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  font-size: 0.68rem; color: var(--muted); font-weight: 600; text-transform: uppercase; }
+.week button b { font-size: 1rem; color: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; text-transform: none; }
+.week button.sel { background: var(--accent); color: var(--accent-fg); }
+.week button.sel b { color: var(--accent-fg); }
+.week button.sel .ring { --track: color-mix(in srgb, var(--accent-fg) 30%, transparent); --fill: var(--accent-fg); }
+.ring { width: 14px; height: 14px; border-radius: 50%; background: conic-gradient(var(--fill, var(--good)) calc(var(--p) * 1%), var(--track, var(--ring-track)) 0);
+  -webkit-mask: radial-gradient(circle, transparent 3px, #000 3.5px); mask: radial-gradient(circle, transparent 3px, #000 3.5px); }
+
+.banner { background: color-mix(in srgb, var(--warn) 14%, var(--surface)); border-radius: 14px; padding: 12px 14px; display: flex; gap: 10px; align-items: center;
+  font-size: 0.85rem; text-align: left; width: 100%; color: var(--fg); }
+.saved { font-size: 0.75rem; color: var(--good); min-height: 1em; text-align: right; transition: opacity 300ms; }
+.edit { display: flex; gap: 6px; align-items: center; }
+.edit input { flex: 1; }
+.edit button { min-width: 44px; padding: 0; background: var(--sunk); }
+.edit .btn-primary { background: var(--accent); }
+#editList .edit, #removedList .edit { padding: 6px 16px; }
+#editList .edit input { background: none; padding: 0; min-height: 40px; font-size: 1rem; }
+.best { font-size: 0.72rem; color: var(--warn); font-weight: 600; white-space: nowrap; }
+
+/* Trends */
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; background: var(--sunk); border-radius: 12px; padding: 2px; }
+.seg button { background: none; min-height: 36px; font-size: 0.9rem; font-weight: 500; border-radius: 10px; }
+.seg button[aria-pressed="true"] { background: var(--surface); font-weight: 600; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+svg.chart text { font-family: var(--font-ui); font-size: 10px; fill: var(--muted); }
+svg.chart rect, svg.chart path { animation: grow 500ms var(--ease-out) both; transform-origin: bottom; transform-box: fill-box; }
+@keyframes grow { from { opacity: 0; transform: scaleY(.3); } to { opacity: 1; transform: none; } }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.78rem; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat { background: var(--sunk); border-radius: 12px; padding: 12px 10px; display: flex; flex-direction: column; gap: 4px; }
+.stat b { font-family: var(--font-num); font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.stat span { font-size: 0.66rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+.insight { margin: 0; font-size: 0.98rem; line-height: 1.45; font-weight: 500; }
+.impact, .rates { display: flex; flex-direction: column; gap: 12px; }
+.imp { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; }
+.imp .n { font-size: 0.95rem; font-weight: 500; }
+.imp .v { font-size: 0.85rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.imp .track { grid-column: 1 / -1; position: relative; height: 8px; background: var(--sunk); border-radius: 99px; }
+.imp .track::after { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1.5px; background: var(--muted); }
+.imp .track i { position: absolute; top: 0; bottom: 0; border-radius: 99px; animation: grow 500ms var(--ease-out) both; }
+.imp .sub { grid-column: 1 / -1; font-size: 0.74rem; color: var(--muted); }
+.rt { display: grid; grid-template-columns: 1fr 48px; gap: 6px 10px; align-items: center; font-size: 0.95rem; }
+.rt .v { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; font-size: 0.9rem; }
+.progress { height: 8px; background: var(--sunk); border-radius: 99px; overflow: hidden; }
+.progress i { display: block; height: 100%; border-radius: 99px; transition: width 500ms var(--ease-out); }
+.rt .progress { grid-column: 1 / -1; }
+.heat { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.heat div { aspect-ratio: 1; border-radius: 5px; background: var(--sunk); }
+.heat .hd { background: none; aspect-ratio: auto; font-size: 0.66rem; color: var(--muted); text-align: center; font-weight: 600; }
+.heat .td { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* Frosted tab bar with icons, sitting in the thumb zone */
+nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; display: grid; grid-template-columns: repeat(3, 1fr);
+  background: color-mix(in srgb, var(--surface) 78%, transparent); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+  border-top: 0.5px solid var(--line);
+  padding: 6px max(16px, env(safe-area-inset-left, 0px)) calc(4px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-right, 0px)); }
+nav.tabs button { background: none; min-height: 50px; font-size: 0.68rem; font-weight: 600; color: var(--muted); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
+nav.tabs button svg { width: 25px; height: 25px; transition: transform 200ms var(--spring); }
+nav.tabs button[aria-selected="true"] { color: var(--accent); }
+nav.tabs button[aria-selected="true"] svg { transform: scale(1.08); }
+nav.tabs button:active { transform: none; }
+nav.tabs button:active svg { transform: scale(.88); }
+
+.toast { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 40; display: flex; align-items: center; gap: 12px;
+  background: color-mix(in srgb, var(--fg) 92%, transparent); color: var(--bg); padding: 10px 16px; border-radius: 99px; font-size: 0.88rem; font-weight: 500;
+  max-width: calc(100vw - 32px); box-shadow: 0 8px 24px rgba(0,0,0,.25);
+  transform: translate(-50%, 16px); opacity: 0; transition: transform 160ms var(--ease-in), opacity 160ms var(--ease-in); }
+.toast.in { transform: translate(-50%, 0); opacity: 1; transition: transform 260ms var(--spring), opacity 200ms var(--ease-out); }
+.toast button { min-height: 30px; padding: 0 6px; background: none; color: var(--accent); font-weight: 700; }
+:root:not(.red) .toast button { color: color-mix(in srgb, var(--accent) 70%, var(--bg)); }
+
+.burst { position: fixed; pointer-events: none; z-index: 50; width: 8px; height: 8px; border-radius: 2px; animation: burst 700ms var(--ease-out) forwards; }
+@keyframes burst { to { transform: translate(var(--x), var(--y)) rotate(var(--r)); opacity: 0; } }
+.haptic { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; overflow: hidden; }
+
+/* ---------- Log sections (from Underway Log) ---------- */
+.sectlabel { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.01em; margin: 10px 4px -2px; }
+.sectlabel small { display: block; font-size: 0.8rem; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+.auto { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.06em; color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); border-radius: 6px; padding: 3px 6px; }
+.sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+.big { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 2.1rem; font-weight: 700; line-height: 1; letter-spacing: -0.02em; }
+.big small { font-size: 0.95rem; color: var(--muted); font-weight: 500; letter-spacing: 0; }
+.bar { height: 8px; background: var(--sunk); border-radius: 99px; overflow: hidden; }
+.bar > i { display: block; height: 100%; border-radius: 99px; transition: width 500ms var(--ease-out); }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+@media (max-width: 380px) { .grid3 { grid-template-columns: 1fr 1fr; } }
+.list { display: flex; flex-direction: column; gap: 6px; }
+.item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--sunk); border-radius: 12px; min-width: 0; animation: rise 200ms var(--ease-out) both; }
+.item .t { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 0.95rem; }
+.item .t small { display: block; color: var(--muted); font-size: 0.78rem; }
+.item .v { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; font-size: 0.9rem; }
+.item.tap .t { cursor: pointer; }
+.x { min-height: 32px; min-width: 32px; padding: 0; border-radius: 8px; color: var(--muted); font-size: 0.9rem; background: none; }
+.empty { color: var(--muted); font-size: 0.85rem; padding: 2px; }
+input[type=number], input[type=date], select { background: var(--sunk); border: none; border-radius: 12px; min-height: 44px; padding: 0 12px; min-width: 0; width: 100%; font-size: 16px; -webkit-appearance: none; appearance: none; }
+select { background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 28px; }
+label.f { display: flex; flex-direction: column; gap: 5px; font-size: 0.78rem; color: var(--muted); font-weight: 600; min-width: 0; }
 input[type=range] { width: 100%; accent-color: var(--water); height: 36px; }
 .waterrow { display: grid; grid-template-columns: 44px 1fr 44px; gap: 8px; align-items: center; }
-.waterrow button { padding: 0; font-size: 1.3rem; }
-.cups { display: flex; flex-wrap: wrap; gap: 4px; }
-.cups i { width: 14px; height: 18px; border: 2px solid var(--water); border-top-width: 1px; border-radius: 2px 2px 5px 5px; }
+.waterrow button { padding: 0; font-size: 1.4rem; background: var(--sunk); color: var(--water); border-radius: 50%; }
+.cups { display: flex; flex-wrap: wrap; gap: 5px; }
+.cups i { width: 14px; height: 18px; border: 2px solid var(--water); border-top-width: 1px; border-radius: 2px 2px 5px 5px; transition: background-color 200ms var(--ease-out); }
 .cups i.full { background: var(--water); }
-
-/* Mood chips */
-.chips { display: flex; gap: 6px; flex-wrap: wrap; }
-.chips button { min-height: 38px; padding: 0 12px; font-size: 0.85rem; }
-.chips button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
-
-/* Week view */
+.hint { font-size: 0.85rem; background: var(--sunk); border-radius: 12px; padding: 10px 12px; line-height: 1.45; }
+.hint b { font-weight: 700; }
+#v-day .row button:not(.btn-primary), #v-day .grid2 button { background: var(--sunk); }
+#quickAdds button { color: var(--protein); font-weight: 600; }
+.datepick { position: relative; overflow: hidden; }
+.datepick input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; min-height: 0; padding: 0; }
+/* Week / month (progress) */
 .goalcard { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; }
-.goalcard .name { font-weight: 600; display: flex; align-items: center; gap: 8px; }
-.goalcard .stat { font-family: var(--font-num); font-size: 0.9rem; text-align: right; }
+.goalcard .name { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.goalcard .stat { font-size: 0.9rem; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; background: none; padding: 0; display: block; }
 .goalcard .bar { grid-column: 1 / -1; }
 .goalcard .detail { grid-column: 1 / -1; font-size: 0.8rem; color: var(--muted); }
-.pill { display: inline-block; font-size: 0.72rem; padding: 2px 8px; border-radius: 99px; border: 1px solid currentColor; font-weight: 600; letter-spacing: 0.02em; }
+#goalCards { gap: 16px; }
+.pill { display: inline-block; font-size: 0.7rem; padding: 2px 8px; border-radius: 99px; font-weight: 700; letter-spacing: 0.02em; background: color-mix(in srgb, currentColor 14%, transparent); }
 .pill.ok { color: var(--good); } .pill.mid { color: var(--warn); } .pill.low { color: var(--muted); }
-.chart { width: 100%; height: auto; display: block; }
-.chart text { fill: var(--muted); font-family: var(--font-num); font-size: 11px; }
-.chart .gridl { stroke: var(--line); stroke-width: 1; }
-.chart .goal { stroke: var(--fg); stroke-width: 2; stroke-dasharray: 4 3; }
-.legend { display: flex; gap: 14px; font-size: 0.78rem; color: var(--muted); flex-wrap: wrap; }
-.legend span { display: inline-flex; align-items: center; gap: 6px; }
-.legend i { width: 12px; height: 4px; display: inline-block; background: var(--water); border-radius: 2px; }
-.legend i.g { background: none; border-top: 2px dashed var(--fg); height: 0; }
+svg.chart .gridl { stroke: var(--line); stroke-width: 1; }
+svg.chart .goal { stroke: var(--fg); stroke-width: 2; stroke-dasharray: 4 3; }
+svg.chart .wpt { fill: var(--weight); }
+svg.chart .wavg { fill: none; stroke: var(--weight); stroke-width: 2.5; }
+svg.chart .pace { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.ulegend { display: flex; gap: 14px; font-size: 0.78rem; color: var(--muted); flex-wrap: wrap; }
+.ulegend span { display: inline-flex; align-items: center; gap: 6px; }
+.ulegend i { width: 12px; height: 4px; display: inline-block; background: var(--water); border-radius: 2px; }
+.ulegend i.g { background: none; border-top: 2px dashed var(--fg); height: 0; }
+.ulegend i.w { background: var(--weight); }
+.ulegend i.p { background: none; border-top: 2px dashed var(--muted); height: 0; }
 .daygrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; font-size: 0.72rem; }
-.daygrid .h { color: var(--muted); }
-.daygrid .c { font-family: var(--font-num); padding: 6px 0; border-radius: 8px; background: var(--sunk); }
-.daygrid .c.hit { background: var(--accent); color: var(--accent-fg); }
-
-/* Tab bar */
-nav.tabs {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; background: var(--surface); border-top: 1px solid var(--line);
-  display: grid; grid-template-columns: repeat(4, 1fr);
-  padding: 6px max(16px, env(safe-area-inset-left, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-right, 0px));
-}
-nav.tabs button { border: none; background: none; min-height: 48px; font-size: 0.85rem; color: var(--muted); font-weight: 600; }
-nav.tabs button[aria-selected="true"] { color: var(--accent); }
-.toast { position: fixed; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 99px; font-size: 0.85rem; z-index: 40; }
-.hint { font-size: 0.82rem; color: var(--fg); background: var(--sunk); border-radius: 10px; padding: 8px 10px; line-height: 1.4; }
-.hint b { font-family: var(--font-num); font-weight: 600; }
-.item.tap { cursor: pointer; }
-.subhead { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 2px 0 -4px; }
+.daygrid .h { color: var(--muted); font-weight: 600; align-self: center; }
+.daygrid .c { padding: 6px 0; border-radius: 8px; background: var(--sunk); font-weight: 600; }
+.daygrid .c.hit { background: var(--good); color: #fff; }
+:root.red .daygrid .c.hit { color: #000; }
 .streaks { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-.streak { background: var(--sunk); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.streak .n { font-family: var(--font-num); font-size: 1.6rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
-.streak .l { font-size: 0.78rem; color: var(--muted); }
-.streak .best { font-size: 0.72rem; color: var(--muted); font-family: var(--font-num); }
-.chart .wpt { fill: var(--weight); }
-.chart .wavg { fill: none; stroke: var(--weight); stroke-width: 2.5; }
-.chart .pace { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 5 4; }
-.legend i.w { background: var(--weight); }
-.legend i.p { background: none; border-top: 2px dashed var(--muted); height: 0; }
-.monthhead { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; gap: 8px; }
-.monthhead h2 { justify-content: center; font-size: 0.95rem; letter-spacing: 0.04em; }
+.streaks .streak { background: var(--sunk); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; color: var(--fg); font-weight: 400; white-space: normal; }
+.streaks .streak .n { font-family: var(--font-num); font-size: 1.7rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.streaks .streak .l { font-size: 0.78rem; color: var(--muted); }
+.streaks .streak .best { font-size: 0.72rem; color: var(--warn); }
+.monthhead { display: grid; grid-template-columns: 40px 1fr 40px; align-items: center; gap: 8px; }
+.monthhead h2 { justify-content: center; font-size: 1rem; color: var(--fg); text-transform: none; letter-spacing: 0; font-weight: 700; }
 .mgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-.mgrid .h { text-align: center; font-size: 0.7rem; color: var(--muted); padding-bottom: 2px; }
-.mgrid button { min-height: 50px; padding: 4px 0; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-family: var(--font-num); font-size: 0.9rem; border: 1px solid transparent; }
+.mgrid .h { text-align: center; font-size: 0.7rem; color: var(--muted); padding-bottom: 2px; font-weight: 600; }
+.mgrid button { min-height: 50px; padding: 4px 0; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 0.9rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .mgrid button.out { visibility: hidden; }
-.mgrid button.today { border-color: var(--fg); }
+.mgrid button.today { box-shadow: inset 0 0 0 1.5px var(--fg); }
 .mgrid button.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
 .mgrid button.future { opacity: 0.45; }
 .mgrid .sc { display: flex; gap: 2px; height: 4px; }
 .mgrid .sc i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
 .mlegend { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--muted); flex-wrap: wrap; }
 .mlegend span { width: 18px; height: 14px; border-radius: 4px; display: inline-block; }
-.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-.stats div { background: var(--sunk); border-radius: 10px; padding: 10px; }
-.stats b { display: block; font-family: var(--font-num); font-size: 1.2rem; font-variant-numeric: tabular-nums; }
-.stats span { font-size: 0.78rem; color: var(--muted); }
-@media (prefers-reduced-motion: reduce) { button:active { transform: none; } }
-@media (max-width: 380px) { .grid3 { grid-template-columns: 1fr 1fr; } }
+.ustats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.ustats div { background: var(--sunk); border-radius: 12px; padding: 12px; }
+.ustats b { display: block; font-family: var(--font-num); font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ustats span { font-size: 0.75rem; color: var(--muted); }
+.icon-btn.sm { width: 36px; min-width: 36px; min-height: 36px; background: var(--sunk); }
+.pane { display: flex; flex-direction: column; gap: 14px; }
+.settings .card h2 { color: var(--muted); }
+#v-settings .grid2 button, #v-settings .row button:not(.btn-primary), #v-settings > section > button:not(.btn-primary) { background: var(--sunk); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; }
+  .burst { display: none; }
+}
 </style>
+
 </head>
 <body>
-
 <div class="wrap">
-  <div class="datebar">
-    <div class="datehead">
-      <h1 id="dateTitle">Today</h1>
-      <label class="datepick" title="Pick a date"><input type="date" id="datePick" aria-label="Pick a date"><span>📅</span></label>
-      <button class="icon-btn" id="redBtn" aria-pressed="false" aria-label="Red light mode" title="Red light mode">◐</button>
-    </div>
-    <div class="strip" id="strip"></div>
-  </div>
 
   <!-- TODAY -->
-  <div class="view" id="v-day">
+  <div id="v-day" class="view">
+    <div class="datebar">
+      <h1><button type="button" id="dTitleBtn" aria-label="Jump to today"><span class="sub" id="dSub">Today</span><span id="dTitle"></span></button></h1>
+      <label class="icon-btn datepick" title="Pick a date"><input type="date" id="datePick" aria-label="Pick a date"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></label>
+      <button type="button" class="icon-btn" id="prev" aria-label="Previous day"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <button type="button" class="icon-btn" id="next" aria-label="Next day"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+    </div>
+    <div class="week" id="week" aria-label="This week"></div>
+    <button type="button" class="banner" id="backupNag" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 3 2 20h20L12 3zM12 10v4M12 17.5v.01"/></svg> <span>It’s been a while since your last backup. Tap to back up now so you don’t lose your log.</span></button>
+
+    <section class="card hero" id="hero">
+      <div class="ringwrap">
+        <svg viewBox="0 0 108 108" aria-hidden="true"><circle class="track" cx="54" cy="54" r="46" fill="none" stroke-width="12"/><circle class="arc" id="heroArc" cx="54" cy="54" r="46" fill="none" stroke-width="12" stroke-dasharray="289.03" stroke-dashoffset="289.03"/></svg>
+        <div class="pct"><b id="heroPct">0%</b><span>done</span></div>
+      </div>
+      <div class="side">
+        <div class="big" id="heroBig" style="font-size:1.25rem"></div>
+        <div class="muted" id="heroSub"></div>
+      </div>
+    </section>
+
+    <section class="card" id="pushCard">
+      <h2>Today’s reminder <span class="right" id="pushNum"></span></h2>
+      <p id="pushLine" style="margin:0;line-height:1.3;text-wrap:balance"></p>
+      <button type="button" id="pushNext">Another one</button>
+    </section>
+
+    <section class="card">
+      <h2>Self-care <span class="right" id="doneCount"></span></h2>
+      <i id="bar" hidden></i>
+      <div class="habits" id="habitList"></div>
+      <div class="muted" id="logStreak"></div>
+    </section>
+
+    <section class="card">
+      <h2>Work <span class="right" id="workCount"></span></h2>
+      <div class="habits" id="workList"></div>
+      <div class="rlabel">Work to get done</div>
+      <div class="habits" id="taskList"></div>
+      <div class="edit"><input type="text" id="newTask" placeholder="Add work to do" maxlength="80"><button type="button" class="btn-primary" id="addTask" aria-label="Add task">+</button></div>
+      <p class="muted" style="margin:0">Unfinished work carries over to tomorrow. “All work done” checks itself when the list is clear. Press and hold a task to edit it.</p>
+    </section>
+
+    <div class="sectlabel">Log<small>Habits marked AUTO check themselves from what you log here.</small></div>
+
     <section class="card" aria-labelledby="h-weight">
       <h2 id="h-weight"><span class="sw" style="background:var(--weight)"></span>Weight<span class="right" id="wtRateTxt"></span></h2>
       <div class="row">
@@ -307,77 +454,129 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
 
     <section class="card" aria-labelledby="h-note">
       <h2 id="h-note">How I feel</h2>
-      <div class="chips" id="moodChips"></div>
-      <textarea id="note" placeholder="Energy, mood, soreness, anything on your mind."></textarea>
-      <span class="muted" id="noteSaved">Saves as you type.</span>
+      <div class="rlabel">Mood</div>
+      <div class="rate" id="rMood"></div>
+      <div class="rlabel">Energy</div>
+      <div class="rate" id="rEnergy"></div>
+      <textarea id="note" placeholder="Soreness, stress, anything on your mind (optional)"></textarea>
+      <div class="saved" id="noteSaved"></div>
     </section>
   </div>
 
-  <!-- WEEK -->
-  <div class="view" id="v-week" hidden>
-    <section class="card">
-      <h2>Week so far<span class="right" id="weekRange"></span></h2>
-      <div class="list" id="goalCards"></div>
-    </section>
-    <section class="card">
-      <h2>Streaks</h2>
-      <div class="streaks" id="streaks"></div>
-    </section>
-    <section class="card">
-      <h2><span class="sw" style="background:var(--weight)"></span>Weight trend<span class="right" id="wtTrendTxt"></span></h2>
-      <svg class="chart" id="weightChart" viewBox="0 0 340 200" role="img" aria-label="Body weight over the last 8 weeks"></svg>
-      <div class="legend"><span><i class="w"></i>7-day average</span><span><i class="p"></i>Fastest safe pace</span></div>
-      <p class="muted" style="margin:0" id="wtTrendNote"></p>
-    </section>
-    <section class="card">
-      <h2><span class="sw" style="background:var(--water)"></span>Water this week</h2>
-      <svg class="chart" id="waterChart" viewBox="0 0 340 190" role="img" aria-label="Cups of water per day this week"></svg>
-      <div class="legend"><span><i></i>Cups drunk</span><span><i class="g"></i>Daily goal</span></div>
-    </section>
-    <section class="card">
-      <h2>Days goal hit</h2>
-      <div class="daygrid" id="hitGrid"></div>
-    </section>
-    <section class="card">
-      <h2>Workouts this week</h2>
-      <div class="list" id="weekWorkouts"></div>
-    </section>
+  <!-- PROGRESS -->
+  <div id="v-progress" class="view" hidden>
+    <div class="datebar"><h1>Progress</h1></div>
+    <div class="seg" id="progSeg">
+      <button type="button" data-p="week">Week</button>
+      <button type="button" data-p="month">Month</button>
+      <button type="button" data-p="trends">Habits</button>
+    </div>
+
+    <div class="pane" id="p-week">
+      <section class="card">
+        <div class="monthhead">
+          <button type="button" class="icon-btn sm" id="wkPrev" aria-label="Previous week"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+          <h2 id="weekRange"></h2>
+          <button type="button" class="icon-btn sm" id="wkNext" aria-label="Next week"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+        </div>
+        <div class="list" id="goalCards"></div>
+      </section>
+      <section class="card">
+        <h2>Streaks</h2>
+        <div class="streaks" id="streaks"></div>
+      </section>
+      <section class="card">
+        <h2><span class="sw" style="background:var(--weight)"></span>Weight trend<span class="right" id="wtTrendTxt"></span></h2>
+        <svg class="chart" id="weightChart" viewBox="0 0 340 200" role="img" aria-label="Body weight over the last 8 weeks"></svg>
+        <div class="ulegend"><span><i class="w"></i>7-day average</span><span><i class="p"></i>Fastest safe pace</span></div>
+        <p class="muted" style="margin:0" id="wtTrendNote"></p>
+      </section>
+      <section class="card">
+        <h2><span class="sw" style="background:var(--water)"></span>Water this week</h2>
+        <svg class="chart" id="waterChart" viewBox="0 0 340 190" role="img" aria-label="Cups of water per day this week"></svg>
+        <div class="ulegend"><span><i></i>Cups drunk</span><span><i class="g"></i>Daily goal</span></div>
+      </section>
+      <section class="card">
+        <h2>Days goal hit</h2>
+        <div class="daygrid" id="hitGrid"></div>
+      </section>
+      <section class="card">
+        <h2>Workouts this week</h2>
+        <div class="list" id="weekWorkouts"></div>
+      </section>
+    </div>
+
+    <div class="pane" id="p-month" hidden>
+      <section class="card">
+        <div class="monthhead">
+          <button type="button" class="icon-btn sm" id="mPrev" aria-label="Previous month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+          <h2 id="mTitle"></h2>
+          <button type="button" class="icon-btn sm" id="mNext" aria-label="Next month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+        </div>
+        <div class="mgrid" id="mGrid"></div>
+        <div class="mlegend" id="mLegend"></div>
+        <p class="muted" style="margin:0">Each day counts four goals: water, protein, sleep, and a workout logged. Tap a day to open it.</p>
+      </section>
+      <section class="card">
+        <h2>This month</h2>
+        <div class="ustats" id="mStats"></div>
+      </section>
+    </div>
+
+    <div class="pane" id="p-trends" hidden>
+      <div class="seg" id="range">
+        <button type="button" data-n="14">2 weeks</button>
+        <button type="button" data-n="30" aria-pressed="true">30 days</button>
+        <button type="button" data-n="90">90 days</button>
+      </div>
+      <section class="card">
+        <h2>At a glance</h2>
+        <div class="stats" id="stats"></div>
+        <p class="insight" id="insight"></p>
+      </section>
+      <section class="card">
+        <h2>This week vs last week</h2>
+        <div class="stats" id="wow"></div>
+      </section>
+      <section class="card">
+        <h2>Habits done vs how I felt</h2>
+        <div id="lineChart"></div>
+        <div class="legend"><span><i style="background:var(--good);opacity:.55"></i>Habits done %</span><span><i style="background:var(--mood)"></i>Mood</span><span><i style="background:var(--energy)"></i>Energy</span></div>
+      </section>
+      <section class="card">
+        <h2>More self-care, better days?</h2>
+        <p class="muted" style="margin:0">Your average mood on days you got through a little, some, or most of your list.</p>
+        <div id="bucketChart"></div>
+      </section>
+      <section class="card">
+        <h2>What each habit does for you</h2>
+        <p class="muted" style="margin:0">Average mood on days you did it, compared with days you skipped it. Right of the line means you felt better on days you did it.</p>
+        <div class="impact" id="impact"></div>
+      </section>
+      <section class="card">
+        <h2>How often I do each habit</h2>
+        <div class="rates" id="rates"></div>
+      </section>
+      <section class="card">
+        <h2>Last 12 weeks</h2>
+        <div class="heat" id="heat"></div>
+        <div class="legend"><span>Brighter = more of your list done</span></div>
+      </section>
+    </div>
   </div>
 
-  <!-- MONTH -->
-  <div class="view" id="v-month" hidden>
+  <!-- SETTINGS -->
+  <div id="v-settings" class="view" hidden>
+    <div class="datebar"><h1>Settings</h1></div>
     <section class="card">
-      <div class="monthhead">
-        <button type="button" id="mPrev" aria-label="Previous month">‹</button>
-        <h2 id="mTitle"></h2>
-        <button type="button" id="mNext" aria-label="Next month">›</button>
+      <h2>My habits</h2>
+      <div id="editList" class="habits"></div>
+      <div class="edit"><input type="text" id="newHabit" placeholder="Add a habit" maxlength="40"><button type="button" class="btn-primary" id="addHabit" aria-label="Add habit">+</button></div>
+      <p class="muted" style="margin:0">AUTO habits check themselves from your log. Removing a habit hides it but keeps its history in your trends.</p>
+      <div id="removedWrap" hidden>
+        <div class="rlabel" style="margin-bottom:6px">Removed habits</div>
+        <div id="removedList" class="habits"></div>
       </div>
-      <div class="mgrid" id="mGrid"></div>
-      <div class="mlegend" id="mLegend"></div>
-      <p class="muted" style="margin:0">Each day counts four goals: water, protein, sleep, and a workout logged. Tap a day to open it.</p>
-    </section>
-    <section class="card">
-      <h2>This month</h2>
-      <div class="stats" id="mStats"></div>
-    </section>
-  </div>
-
-  <!-- GOALS -->
-  <div class="view" id="v-goals" hidden>
-    <section class="card" aria-labelledby="h-ship">
-      <h2 id="h-ship">Ship time<span class="right" id="shipOffTxt"></span></h2>
-      <div class="stats">
-        <div><b id="shipClock">–</b><span>App time (sets what “today” is)</span></div>
-        <div><b id="phoneClock">–</b><span>Phone time</span></div>
-      </div>
-      <p class="muted" style="margin:0">After a time zone change, adjust until App time matches the ship's clock.</p>
-      <div class="grid2">
-        <button type="button" id="offHm">− 1 hour</button>
-        <button type="button" id="offHp">+ 1 hour</button>
-        <button type="button" id="offDm">− 1 day</button>
-        <button type="button" id="offDp">+ 1 day</button>
-      </div>
-      <button type="button" id="offReset">Match phone time</button>
     </section>
     <section class="card">
       <h2>Goals</h2>
@@ -390,7 +589,31 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
       </div>
       <label class="f">Fastest weight loss you want (lb / week)<input type="number" id="gCut" inputmode="decimal" min="0" step="0.25"></label>
       <button type="button" class="btn-primary" id="gSave">Save goals from this day on</button>
-      <p class="muted" style="margin:0">Earlier days keep the goals they had. Pick a different day up top to change goals from that day instead.</p>
+      <p class="muted" style="margin:0">Earlier days keep the goals they had. Pick a different day on the Today tab to change goals from that day instead.</p>
+    </section>
+    <section class="card" aria-labelledby="h-ship">
+      <h2 id="h-ship">Ship time<span class="right" id="shipOffTxt"></span></h2>
+      <div class="ustats">
+        <div><b id="shipClock" style="font-size:1rem">–</b><span>App time (sets what “today” is)</span></div>
+        <div><b id="phoneClock" style="font-size:1rem">–</b><span>Phone time</span></div>
+      </div>
+      <p class="muted" style="margin:0">After a time zone change, adjust until App time matches the ship's clock.</p>
+      <div class="grid2">
+        <button type="button" id="offHm">− 1 hour</button>
+        <button type="button" id="offHp">+ 1 hour</button>
+        <button type="button" id="offDm">− 1 day</button>
+        <button type="button" id="offDp">+ 1 day</button>
+      </div>
+      <button type="button" id="offReset">Sync to phone time</button>
+    </section>
+    <section class="card">
+      <h2>Display</h2>
+      <div class="seg" id="themeSeg">
+        <button type="button" data-t="auto">Auto</button>
+        <button type="button" data-t="dark">Dark</button>
+        <button type="button" data-t="light">Light</button>
+      </div>
+      <button type="button" id="redBtn" aria-pressed="false">Red light mode</button>
     </section>
     <section class="card">
       <h2>Protein quick-add buttons</h2>
@@ -406,8 +629,9 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
     </section>
     <section class="card">
       <h2>Backup</h2>
-      <p class="muted" style="margin:0">Your log lives only on this phone. Copy a backup now and then and paste it in Notes, or email it to yourself.</p>
-      <div class="row"><button type="button" id="bCopy">Copy backup</button></div>
+      <p class="muted" style="margin:0">Everything lives only on this phone. Copy a backup now and then and paste it in Notes, or email it to yourself. Old Underway Log and Habits backups restore here too.</p>
+      <div class="row"><button type="button" id="bCopy">Copy backup</button><button type="button" id="csvCopy">Copy habits as spreadsheet</button></div>
+      <div class="muted" id="lastBackup"></div>
       <textarea id="bText" placeholder="Paste a backup here to restore it"></textarea>
       <div class="row"><button type="button" id="bRestore">Restore from pasted backup</button><span class="muted" id="bMsg"></span></div>
     </section>
@@ -415,17 +639,16 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
 </div>
 
 <nav class="tabs" role="tablist">
-  <button type="button" role="tab" id="t-day" aria-selected="true">Today</button>
-  <button type="button" role="tab" id="t-week" aria-selected="false">Week</button>
-  <button type="button" role="tab" id="t-month" aria-selected="false">Month</button>
-  <button type="button" role="tab" id="t-goals" aria-selected="false">Goals</button>
+  <button type="button" role="tab" id="t-day" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.5 2.5L16 9.5"/></svg>Today</button>
+  <button type="button" role="tab" id="t-progress" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Progress</button>
+  <button type="button" role="tab" id="t-settings" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
 </nav>
-<div class="toast" id="toast" hidden></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<label class="haptic" aria-hidden="true"><input type="checkbox" switch id="hapticSw" tabindex="-1"></label>
 
 <script>
 (function () {
   var KEY = 'underwaylog.v1';
-  var MOODS = ['Rough', 'Low', 'Okay', 'Good', 'Great'];
   var DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   var EX = ['Bench press', 'DB shoulder press', 'DB row', 'Goblet squat', 'DB lunge', 'Romanian deadlift', 'DB curl', 'Tricep extension', 'Push-ups', 'Pull-ups', 'Plank', 'Bike', 'Treadmill', 'Rower', 'Band pull-apart', 'Band row'];
 
@@ -458,7 +681,8 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
   TODAY = nowDay();
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
 
-  var sel = TODAY, tab = 'day', mCur = TODAY.slice(0, 7), editing = null;
+  var sel = TODAY, tab = 'day', pTab = 'week', mCur = TODAY.slice(0, 7), editing = null;
+  try { var lt = JSON.parse(localStorage.getItem('underwaylog.ui') || '{}'); if (['day', 'progress', 'settings'].indexOf(lt.tab) >= 0) tab = lt.tab; if (['week', 'month', 'trends'].indexOf(lt.p) >= 0) pTab = lt.p; } catch (e) {}
 
   function day(d) {
     if (!S.days[d]) S.days[d] = { water: 0, protein: [], workouts: [], sleep: [], note: '', mood: null };
@@ -474,47 +698,27 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
   function r1(n) { return Math.round(n * 10) / 10; }
   function $(id) { return document.getElementById(id); }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
-  function toast(t) { var x = $('toast'); x.textContent = t; x.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(function () { x.hidden = true; }, 1600); }
+  function toast(t, a, f) { if (window.HB) HB.toast(t, a, f); }
   function pct(v, g) { return g > 0 ? Math.min(100, (v / g) * 100) : 0; }
 
   /* ---------- Date bar ---------- */
   function renderDateBar() {
-    var d = parse(sel);
-    var label = sel === TODAY ? 'Today' : sel === addDays(TODAY, -1) ? 'Yesterday' : d.toLocaleDateString(undefined, { weekday: 'long' });
-    $('dateTitle').innerHTML = '';
-    $('dateTitle').appendChild(document.createTextNode(label));
-    var sub = el('span', 'sub', d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) + (S.hourOffset ? ' · ship time ' + fmtOff(S.hourOffset) : ''));
-    $('dateTitle').appendChild(sub);
+    var d = parse(sel), diff = Math.round((parse(TODAY) - d) / 864e5);
+    $('dSub').textContent = (S.hourOffset ? 'Ship time ' + fmtOff(S.hourOffset) + ' · ' : '') + (diff === 0 ? 'Today' : diff === 1 ? 'Yesterday' : diff === -1 ? 'Tomorrow' : d.toLocaleDateString(undefined, { weekday: 'long' }));
+    $('dTitle').textContent = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     $('datePick').value = sel;
-
-    var strip = $('strip'); strip.innerHTML = '';
-    var mon = monday(sel);
-    var prev = el('button', 'nav', '‹'); prev.type = 'button'; prev.setAttribute('aria-label', 'Previous week');
-    prev.onclick = function () { setSel(addDays(sel, -7)); };
-    strip.appendChild(prev);
-    for (var i = 0; i < 7; i++) {
-      (function (ds, i) {
-        var b = el('button'); b.type = 'button';
-        if (ds === sel) b.classList.add('sel');
-        if (ds === TODAY) b.classList.add('today');
-        b.appendChild(el('span', '', DOW[i]));
-        b.appendChild(el('span', 'd', String(parse(ds).getDate())));
-        var dots = el('span', 'dots'), dd = peek(ds), g = goalFor(ds);
-        if (dd.water >= g.water && g.water > 0) { var a = el('i'); a.style.color = 'var(--water)'; dots.appendChild(a); }
-        if (sum(dd.protein, 'g') >= g.protein && g.protein > 0) { var b2 = el('i'); b2.style.color = 'var(--protein)'; dots.appendChild(b2); }
-        if (dd.workouts.length) { var c = el('i'); c.style.color = 'var(--lift)'; dots.appendChild(c); }
-        if (sum(dd.sleep, 'h') >= g.sleep && g.sleep > 0) { var e = el('i'); e.style.color = 'var(--sleep)'; dots.appendChild(e); }
-        b.appendChild(dots);
-        b.setAttribute('aria-label', parse(ds).toDateString());
-        b.onclick = function () { setSel(ds); };
-        strip.appendChild(b);
-      })(addDays(mon, i), i);
-    }
-    var next = el('button', 'nav', '›'); next.type = 'button'; next.setAttribute('aria-label', 'Next week');
-    next.onclick = function () { setSel(addDays(sel, 7)); };
-    strip.appendChild(next);
+    $('next').disabled = sel >= TODAY;
   }
   function setSel(d) { sel = d; if (editing) { editing = null; $('wAdd').textContent = 'Log workout'; } render(); }
+  window.APP = {
+    sel: function () { return sel; }, today: function () { return TODAY; }, setSel: setSel,
+    hitsFor: function (ds) { return hitsFor(ds); },
+    logDays: function () { return Object.keys(S.days); },
+    logMoods: function () { return Object.keys(S.days).filter(function (k) { return S.days[k].mood != null; }).map(function (k) { return { d: k, mood: S.days[k].mood }; }); },
+    lastBackup: function () { return S.lastBackup; },
+    go: function (t) { tab = t; render(); window.scrollTo(0, 0); },
+    render: function () { render(); }
+  };
   $('datePick').addEventListener('change', function () { if (this.value) setSel(this.value); });
 
   /* ---------- Today ---------- */
@@ -563,13 +767,6 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
 
     // note + mood
     if (document.activeElement !== $('note')) $('note').value = dd.note || '';
-    var chips = $('moodChips'); chips.innerHTML = '';
-    MOODS.forEach(function (m, i) {
-      var b = el('button', '', m); b.type = 'button';
-      b.setAttribute('aria-pressed', dd.mood === i ? 'true' : 'false');
-      b.onclick = function () { var d = day(sel); d.mood = d.mood === i ? null : i; save(); render(); };
-      chips.appendChild(b);
-    });
   }
 
   function listInto(id, arr, fmt, remove, onTap) {
@@ -587,7 +784,7 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
   }
 
   // water controls
-  $('waterSlider').addEventListener('input', function () { day(sel).water = +this.value; save(); renderDay(); renderDateBar(); });
+  $('waterSlider').addEventListener('input', function () { day(sel).water = +this.value; save(); renderDay(); if (window.HB) HB.renderToday(); });
   $('waterMinus').onclick = function () { var d = day(sel); d.water = Math.max(0, d.water - 1); save(); render(); };
   $('waterPlus').onclick = function () { var d = day(sel); d.water = Math.min(20, d.water + 1); save(); render(); };
 
@@ -633,8 +830,8 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
   var noteT;
   $('note').addEventListener('input', function () {
     day(sel).note = this.value; clearTimeout(noteT);
-    $('noteSaved').textContent = 'Saving…';
-    noteT = setTimeout(function () { save(); $('noteSaved').textContent = 'Saved'; }, 400);
+    $('noteSaved').textContent = '';
+    noteT = setTimeout(function () { save(); $('noteSaved').textContent = 'Saved'; setTimeout(function () { $('noteSaved').textContent = ''; }, 1200); }, 400);
   });
 
   /* ---------- Week ---------- */
@@ -653,6 +850,7 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
     var mon = monday(sel), st = weekStats(mon), last = addDays(mon, 6);
     var f = function (s) { return parse(s).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); };
     $('weekRange').textContent = f(mon) + ' – ' + f(last);
+    $('wkNext').disabled = addDays(mon, 7) > TODAY;
     var days = Math.max(1, Math.min(7, st.counted || 7));
     function hits(arr, key) { var n = 0; for (var i = 0; i < 7; i++) if (st.goals[i][key] > 0 && arr[i] >= st.goals[i][key]) n++; return n; }
     function avg(arr) { var s = 0; for (var i = 0; i < days; i++) s += arr[i]; return s / days; }
@@ -759,19 +957,34 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
   $('qSave').onclick = function () {
     S.quick.shake = +$('qShake').value || 0; S.quick.bar = +$('qBar').value || 0; save(); render(); toast('Quick-adds saved');
   };
-  $('bCopy').onclick = function () {
-    var text = JSON.stringify(S);
-    try { navigator.clipboard.writeText(text).then(function () { toast('Backup copied'); }, function () { $('bText').value = text; $('bText').select(); toast('Select all and copy'); }); }
+  function copyText(text, ok) {
+    try { navigator.clipboard.writeText(text).then(function () { toast(ok); }, function () { $('bText').value = text; $('bText').select(); toast('Select all and copy'); }); }
     catch (e) { $('bText').value = text; $('bText').select(); }
+  }
+  $('bCopy').onclick = function () {
+    S.lastBackup = Date.now(); save(); renderSettingsExtras();
+    copyText(JSON.stringify({ app: 'underway-log', v: 2, log: S, habits: HB.state() }), 'Backup copied. Paste it in Notes.');
   };
+  $('csvCopy').onclick = function () { copyText(HB.csv(), 'Habits spreadsheet copied'); };
   $('bRestore').onclick = function () {
-    try {
-      var d = JSON.parse($('bText').value);
-      if (!d || !d.days || !d.goals) throw 0;
-      S = d; save(); $('bText').value = ''; $('bMsg').textContent = 'Restored'; render();
-    } catch (e) { $('bMsg').textContent = 'That doesn’t look like a backup. Paste the full copied text.'; }
+    var d; try { d = JSON.parse($('bText').value); } catch (e) { d = null; }
+    var log = null, hab = null;
+    if (d && d.log && d.habits) { log = d.log; hab = d.habits; }          // combined backup
+    else if (d && d.days && d.goals) log = d;                               // old Underway Log backup
+    else if (d && d.days && d.habits) hab = d;                              // old Habits app backup
+    if (!log && !hab) { $('bMsg').textContent = 'That doesn’t look like a backup. Paste the full copied text.'; return; }
+    var what = log && hab ? 'your log and habits' : log ? 'your log (habits stay as they are)' : 'your habits (log stays as it is)';
+    if (!confirm('Replace ' + what + ' on this phone with this backup?')) return;
+    if (log) { S = log; if (!S.goals || !S.goals.length) S.goals = fresh().goals; if (!S.quick) S.quick = fresh().quick; if (!S.templates) S.templates = []; if (S.hourOffset == null) S.hourOffset = 0; if (S.cutMax == null) S.cutMax = 3; TODAY = nowDay(); sel = TODAY; save(); }
+    if (hab) HB.restore(hab);
+    $('bText').value = ''; $('bMsg').textContent = 'Restored'; render();
   };
-
+  function renderSettingsExtras() {
+    [].forEach.call($('themeSeg').children, function (c) { c.setAttribute('aria-pressed', c.dataset.t === (S.theme || 'auto')); });
+    $('redBtn').setAttribute('aria-pressed', S.red ? 'true' : 'false');
+    $('lastBackup').textContent = S.lastBackup ? 'Last backup: ' + new Date(S.lastBackup).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'No backup yet.';
+  }
+  $('themeSeg').onclick = function (e) { var b = e.target.closest('button'); if (!b) return; S.theme = b.dataset.t; save(); render(); };
 
   /* ---------- Goal hits (shared) ---------- */
   function hitsFor(ds) {
@@ -1074,35 +1287,577 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
   $('offDp').onclick = function () { setOffset(S.hourOffset + 24); };
   $('offReset').onclick = function () { setOffset(0); };
 
-  /* ---------- Tabs, red mode ---------- */
-  ['day', 'week', 'month', 'goals'].forEach(function (t) {
-    $('t-' + t).onclick = function () { if (t === 'month') mCur = sel.slice(0, 7); tab = t; render(); window.scrollTo(0, 0); };
+  /* ---------- Tabs, theme ---------- */
+  ['day', 'progress', 'settings'].forEach(function (t) {
+    $('t-' + t).onclick = function () { if (t === 'progress') mCur = sel.slice(0, 7); tab = t; render(); window.scrollTo(0, 0); };
   });
+  $('progSeg').onclick = function (e) { var b = e.target.closest('button'); if (!b) return; pTab = b.dataset.p; if (pTab === 'month') mCur = sel.slice(0, 7); render(); };
+  $('wkPrev').onclick = function () { setSel(addDays(sel, -7)); };
+  $('wkNext').onclick = function () { var n = addDays(sel, 7); setSel(n > TODAY ? TODAY : n); };
   $('redBtn').onclick = function () { S.red = !S.red; save(); render(); };
-
+  var lastTab = null;
   function render() {
-    document.documentElement.classList.toggle('red', !!S.red);
-    $('redBtn').setAttribute('aria-pressed', S.red ? 'true' : 'false');
-    ['day', 'week', 'month', 'goals'].forEach(function (t) { $('v-' + t).hidden = tab !== t; $('t-' + t).setAttribute('aria-selected', tab === t ? 'true' : 'false'); });
-    renderDateBar();
-    if (tab === 'day') renderDay();
-    if (tab === 'week') renderWeek();
-    if (tab === 'month') renderMonth();
-    if (tab === 'goals') renderGoals();
+    var root = document.documentElement;
+    root.classList.toggle('red', !!S.red);
+    if (S.theme && S.theme !== 'auto') root.setAttribute('data-theme', S.theme); else root.removeAttribute('data-theme');
+    var reduce = window.HB && HB.reduce, changed = lastTab !== tab; lastTab = tab;
+    ['day', 'progress', 'settings'].forEach(function (t) {
+      var v = $('v-' + t); v.hidden = tab !== t; $('t-' + t).setAttribute('aria-selected', tab === t ? 'true' : 'false');
+      if (changed) v.classList.remove('enter');
+    });
+    if (changed && !reduce) { void $('v-' + tab).offsetWidth; $('v-' + tab).classList.add('enter'); }
+    ['week', 'month', 'trends'].forEach(function (p) { $('p-' + p).hidden = pTab !== p; });
+    [].forEach.call($('progSeg').children, function (c) { c.setAttribute('aria-pressed', c.dataset.p === pTab); });
+    try { localStorage.setItem('underwaylog.ui', JSON.stringify({ tab: tab, p: pTab })); } catch (e) {}
+    if (tab === 'day') { renderDateBar(); renderDay(); if (window.HB) HB.renderToday(); }
+    if (tab === 'progress') { if (pTab === 'week') renderWeek(); if (pTab === 'month') renderMonth(); if (pTab === 'trends' && window.HB) HB.renderTrends(); }
+    if (tab === 'settings') { renderGoals(); renderSettingsExtras(); if (window.HB) HB.renderSettings(); }
   }
-
   EX.forEach(function (e) { var o = document.createElement('option'); o.value = e; $('exList').appendChild(o); });
   syncWType();
 
   // Refresh "today" if the app stays open past midnight
-  setInterval(function () { if (tab === 'goals') renderShipClock(); var t = nowDay(); if (t !== TODAY) { var wasToday = sel === TODAY; TODAY = t; if (wasToday) sel = t; render(); } }, 60000);
+  setInterval(function () { if (tab === 'settings') renderShipClock(); var t = nowDay(); if (t !== TODAY) { var wasToday = sel === TODAY; TODAY = t; if (wasToday) sel = t; render(); } }, 60000);
 
   render();
 })();
 </script>
-
 <script>
-if ('serviceWorker' in navigator) {
+(function () {
+  var KEY = 'selfcare-log-v1';
+  var $ = function (id) { return document.getElementById(id); };
+  var MOODS = ['Awful', 'Low', 'Okay', 'Good', 'Great'];
+  var ENERGY = ['Drained', 'Tired', 'Okay', 'Good', 'Charged'];
+
+  function fresh() {
+    var names = ['Workout', 'Hit sleep goal', 'Hit water goal', 'Read 10 min', 'Shower + skincare', 'Tidied my rack'];
+    var s = { habits: names.map(function (n, i) { return { id: 'h' + i, name: n, off: false }; }), days: {}, next: names.length };
+    s.habits.splice(3, 0, { id: 'lp', name: 'Hit protein goal', off: false });
+    return s;
+  }
+  var S;
+  try { S = JSON.parse(localStorage.getItem(KEY)) || fresh(); } catch (e) { S = fresh(); }
+  /* v2: drop doomscrolling, add work habits and a task list */
+  function migrate() {
+    if (S.v2) return;
+    S.habits.forEach(function (h) { if (/doomscroll/i.test(h.name)) h.off = true; });
+    S.habits.push({ id: 'w0', name: 'Got checkouts', off: false, work: true });
+    S.habits.push({ id: 'w1', name: 'All work done today', off: false, work: true, auto: true });
+    S.tasks = S.tasks || []; S.v2 = true;
+  }
+  /* v3: merged into Underway Log. Habits that the log already measures check themselves off. */
+  function migrate3() {
+    if (S.v3) return;
+    var map = [[/workout/i, 'work'], [/sle(pt|ep)/i, 'sleep'], [/water/i, 'water'], [/protein/i, 'protein']];
+    map.forEach(function (m) {
+      var h = S.habits.filter(function (x) { return !x.work && !x.link && m[0].test(x.name); })[0];
+      if (h) { h.link = m[1]; if (m[1] === 'sleep' && /7\+/.test(h.name)) h.name = 'Hit sleep goal'; }
+      else if (m[1] === 'protein') {
+        var at = S.habits.findIndex(function (x) { return x.link === 'water'; });
+        S.habits.splice(at >= 0 ? at + 1 : S.habits.length, 0, { id: 'lp', name: 'Hit protein goal', off: false, link: 'protein' });
+      }
+    });
+    if (!S.habits.some(function (x) { return x.link === 'protein'; })) S.habits.push({ id: 'lp', name: 'Hit protein goal', off: false, link: 'protein' });
+    S.v3 = true;
+  }
+  migrate(); migrate3();
+  function uid() { return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('Could not save'); } }
+  /* Bring over the mood from the old Underway Log mood buttons */
+  if (!S.moodMoved) { APP.logMoods().forEach(function (m) { var d = day(m.d); if (!d.mood) d.mood = m.mood + 1; }); S.moodMoved = true; save(); }
+
+  /* ---------- Dates ---------- */
+  function key(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function parse(k) { var p = k.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function addDays(k, n) { var d = parse(k); d.setDate(d.getDate() + n); return key(d); }
+  /* The date and "today" (ship time) come from the log, so both halves stay on the same day. */
+  var TODAY, cur;
+  function syncDate() { cur = APP.sel(); TODAY = APP.today(); }
+  syncDate();
+  var LINK_SECTION = { work: 'h-lift', sleep: 'h-sleep', water: 'h-water', protein: 'h-protein' };
+  var LINK_WORD = { work: 'a workout', sleep: 'your sleep', water: 'your water', protein: 'your protein' };
+  function syncLinks(k) {
+    var hits = APP.hitsFor(k), ls = S.habits.filter(function (h) { return h.link; });
+    var anyHit = ls.some(function (h) { return hits[h.link]; });
+    if (!anyHit && !S.days[k]) return;
+    var d = day(k); ls.forEach(function (h) { d.done[h.id] = !!hits[h.link]; });
+  }
+  function syncAllLinks() {
+    var ks = {}; APP.logDays().forEach(function (k) { ks[k] = 1; }); Object.keys(S.days).forEach(function (k) { ks[k] = 1; });
+    Object.keys(ks).forEach(syncLinks);
+  }
+  function day(k) { return S.days[k] || (S.days[k] = { done: {}, mood: 0, energy: 0, note: '' }); }
+  function peek(k) { return S.days[k]; }
+  function active() { return S.habits.filter(function (h) { return !h.off; }); }
+
+  /* Share of habits done that day, out of the habits active now */
+  function pct(k) {
+    var d = peek(k), hs = active();
+    if (!d || !hs.length) return null;
+    var any = Object.keys(d.done).some(function (id) { return d.done[id]; });
+    if (!any && !d.mood) return null;
+    var n = hs.filter(function (h) { return d.done[h.id]; }).length;
+    return n / hs.length;
+  }
+  function streak(id) {
+    var k = peek(TODAY) && peek(TODAY).done[id] ? TODAY : addDays(TODAY, -1), n = 0;
+    while (peek(k) && peek(k).done[id]) { n++; k = addDays(k, -1); }
+    return n;
+  }
+
+  function toast(msg, label, fn) {
+    var t = $('toast'); t.innerHTML = ''; var sp = document.createElement('span'); sp.textContent = msg; t.appendChild(sp);
+    if (label) { var b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.onclick = function () { t.classList.remove('in'); fn(); }; t.appendChild(b); }
+    void t.offsetWidth; t.classList.add('in'); clearTimeout(toast.t); toast.t = setTimeout(function () { t.classList.remove('in'); }, label ? 4500 : 1800);
+  }
+  /* Light tap feedback: vibrate on Android; on iPhone (iOS 18+) toggling a hidden switch gives a system haptic. */
+  function haptic() {
+    try { if (navigator.vibrate) { navigator.vibrate(8); return; } var sw = $('hapticSw'); if (sw) sw.parentNode.click(); } catch (e) {}
+  }
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function burst(el) {
+    if (reduce || !el) return;
+    var b = el.getBoundingClientRect(), cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+    var colors = [css('--good'), css('--accent'), css('--warn'), css('--mood')];
+    for (var i = 0; i < 18; i++) {
+      var d = document.createElement('i'); d.className = 'burst';
+      var a = Math.random() * Math.PI * 2, dist = 50 + Math.random() * 70;
+      d.style.left = cx + 'px'; d.style.top = cy + 'px'; d.style.background = colors[i % colors.length];
+      d.style.setProperty('--x', Math.cos(a) * dist + 'px'); d.style.setProperty('--y', Math.sin(a) * dist + 'px'); d.style.setProperty('--r', (Math.random() * 360) + 'deg');
+      document.body.appendChild(d); setTimeout(function (x) { x.remove(); }.bind(null, d), 760);
+    }
+  }
+
+  /* ---------- Daily reminder ---------- */
+  var LINES = ["You said you'd change. You lied. Again.", "Your potential is a joke until you use it.", "Nobody cares how smart you are if you never do anything with it.", "You're not tired. You're soft. Get up.", "Every day you scroll, someone with less talent passes you.", "You've been \"about to start\" for years.", "Stop crying about it and go do it.", "Your excuses are pathetic and you know it.", "You keep choosing the easy thing. That's why nothing changes.", "You're wasting a brain that scored a 96. Embarrassing.", "Talk is cheap. You've been cheap.", "You want greatness but won't do one set of pushups. Pick one.", "You're letting a phone beat you. A phone.", "The man you could be is disgusted by how you spent today.", "Comfort is making you weak and you're letting it.", "You've broken more promises to yourself than to anyone alive.", "Nobody is coming to save you. Nobody ever was.", "Your future self is paying for your laziness right now.", "You don't lack time. You lack spine.", "Quit lying to yourself about tomorrow.", "Every skipped workout is you choosing weak.", "You know exactly what's wrong. You're just too comfortable to fix it.", "Stop acting like a victim of your own habits.", "You'd never let a shipmate slack this hard. Why do you let yourself?", "Discipline or regret. You've been picking regret.", "You keep feeding the weak version of you. Starve him.", "Your friends were right. You don't apply yourself. Fix it.", "You had a whole day and wasted it. Don't do it twice.", "Get off your rack and earn your rest.", "Cheap dopamine is making you cheap.", "You're trading your future for thirty seconds of scrolling. Idiot trade.", "Stop waiting to feel like it. You never will.", "You don't get to complain about results you didn't work for.", "Every lazy day is a vote for the man you hate being.", "You're better than this and that's what makes it unforgivable.", "Wasted talent is worse than no talent.", "You have no right to be proud of potential you never used.", "Nobody remembers the guy who almost did something.", "Weak habits, weak life. Change the habits.", "You're the reason you're stuck. Own it.", "Stop hiding in your phone. Face the work.", "You quit on yourself every day and call it rest.", "Your comfort zone is a cage you built yourself.", "You were built for more than this and you're throwing it away.", "The excuse sounds good. It's still an excuse.", "Get angry. Then get to work.", "You keep negotiating with weakness and losing.", "Stop being the guy who talks big and does nothing.", "You promised yourself. Keep your word, or admit it means nothing.", "If you can't keep a promise to yourself, what is your word worth?", "Soft choices today. Hard life later. Your call.", "You're not stuck. You're lazy. Be honest.", "Doing nothing is a choice. You've been making it every day.", "You want the reward without the pain. Grow up.", "Change the inputs or stop complaining about the output.", "You're capable of so much and doing so little. Unacceptable.", "The clock doesn't care about your feelings. Neither does your future.", "Stop scrolling through other men's wins while you take losses.", "Nobody owes you anything. Go take it.", "Sitting around won't fix anything. You already know that.", "You survived nuke school to waste your nights on a screen?", "Earn the right to rest. You haven't yet.", "Pain of discipline or pain of regret. Choose now.", "Stop being a spectator in your own life.", "Every hour you waste, someone hungrier is working.", "Be honest: would you respect a man who lived your last week?", "Quit wanting it. Start taking it.", "Weakness is a habit. Break it.", "You don't need motivation. You need to stop being soft.", "Your goals laugh at you every time you open that app.", "You're not too busy. You're undisciplined.", "Stop looking for the easy way. There isn't one.", "You were given a mind most people would kill for. Use it or lose it.", "No more \"tomorrow.\" Tomorrow is how you've been losing.", "Don't you dare waste another day.", "Get mad at your habits, not at the world.", "Make the weak part of you sick of losing.", "Every rep you skip is a little bit of quitting.", "You know what champions do on days like this? They show up.", "Your mood is not your boss.", "Stop treating yourself like you're fragile.", "Pathetic is a choice. Choose something else today.", "You are your habits. Look at them. Are you proud?", "Stop asking for permission to be great.", "The guy you want to be would walk past you right now.", "Burn the excuse. Do the work.", "You can't be great and comfortable at the same time.", "Get your head out of your phone and your life in order.", "You don't get a medal for meaning well.", "Prove it. Today. Not someday.", "Your potential is expiring every day you don't use it.", "Nobody's impressed by what you could do.", "You're one decision from respecting yourself again. Make it.", "Lazy is easy. That's why it's beating you.", "Grow a backbone and pick up the weight.", "You're letting temporary feelings make permanent decisions.", "Every day you don't change, you're choosing to stay this way.", "You don't get to be mad about results you keep choosing.", "Stop rewarding yourself for nothing.", "If you were your own chief, you'd write yourself up.", "Stand your watch over your own life. You've been asleep on it.", "You'd never accept this effort from a shipmate. Don't accept it from you.", "The boat demands standards. Demand them of yourself.", "You hold it together at work and fall apart alone. Stop.", "Be as hard on your habits as the Navy is on your quals.", "Stop leaving your discipline at the brow.", "You've earned nothing today yet. Go earn it.", "Hard truth: you've been choosing this.", "Wake up. The years are going by.", "No one is going to drag you out of this. Walk out.", "Quit being comfortable with being average.", "If it's not happening, it's because you're not doing it.", "Your potential has been waiting long enough. Move.", "You want respect? Do something respectable today.", "That scroll you're about to do? Don't.", "Be the problem for your excuses, not the other way around.", "You don't need another plan. You need to stop quitting.", "Average men make excuses. Which one are you today?", "Every time you give in, the weak habit gets stronger.", "Stop feeding the habits that are killing your future.", "Act like your life depends on it. It does.", "What you tolerate, you keep. Stop tolerating this.", "You're sick of being like this? Prove it.", "Hating where you are isn't enough. Move.", "Feeling bad changes nothing. Action does.", "Stop wishing. Start grinding.", "Nobody's watching. Do it anyway. That's the test.", "Discipline when nobody checks is the only kind that counts.", "Your word to yourself has been worthless. Make it worth something today.", "Stop flinching at hard things.", "You talk about greatness. Greatness doesn't talk. It works.", "Shut the phone. Hit the floor. Now.", "Do the pushups before you finish reading this.", "Make your excuses tired of losing.", "You're going to keep feeling like this until you change what you do.", "The weak you wants the snack, the scroll, the nap. Tell him no.", "Win today or admit you didn't try.", "The chain breaks today or it doesn't. You decide.", "Nobody climbs by lying down.", "You know better. Do better.", "Pressure builds diamonds. Comfort builds nothing.", "You keep hitting snooze on your own life.", "Stop being impressed with yourself for planning.", "You've planned enough to last a lifetime. Execute.", "Stop rebuilding the system and do the reps.", "Complaining is free. That's why it's worth nothing.", "You're stronger than your cravings. Prove it.", "One more day of weak choices makes it harder tomorrow.", "You can be uncomfortable now or miserable later.", "Stop letting the worst version of you run the show.", "There's no prize for the most potential.", "Hungry men don't scroll. They work.", "Your life is the sum of your choices. Choose harder.", "You don't need to feel ready. Soldiers rarely do.", "Get tough or get used to staying the same.", "Nobody's coming. Again: nobody is coming.", "Stop being the most talented quitter you know.", "You have zero excuses that survive honest daylight.", "The work is waiting and you're stalling. Again.", "Don't let today be another loss.", "You can't scroll away from who you are. You can work toward who you want to be.", "Tired? Good. Do it tired.", "Sore? Good. Means you did something.", "Bored? Good. Discipline is boring. Do it anyway.", "You want it easy. It won't be. Deal with it.", "Don't you dare go to bed with nothing checked.", "You're wasting the youngest, strongest years you'll ever have.", "Your twenties are not a rehearsal.", "Make the next ten minutes violent with effort.", "Attack the list. Don't stare at it.", "You're done being soft. Start acting like it.", "Stop being nice to your excuses.", "Every weak moment you allow trains you to be weak.", "Train yourself like a weapon, not a pet.", "Stop babying yourself.", "Respect is earned. Earn your own.", "You'll never be proud of a life you didn't fight for.", "Fight for it or shut up about wanting it.", "You quit too early. Every time. Not today.", "Finish. What. You. Start.", "Your laziness is louder than your goals. Turn it down.", "You're going to look back on today. Make it worth remembering.", "Get after it. No more warnings.", "The only thing between you and better is you.", "Beat the version of you that showed up yesterday.", "Stop accepting less from yourself.", "You know what to do. You're out of reasons not to.", "Go. Right now. Not after one more video.", "Either do it or stop pretending you want it.", "Close this app and go do the first thing on the list.", "Your cravings don't get a vote.", "Stop asking how you feel. Ask what you did.", "You've had enough chances. Use this one.", "Stop being average on purpose.", "Excuses or results. You can't have both.", "You were made for hard things. Act like it.", "Every \"later\" you say is a small surrender.", "Hold the line. Don't give in tonight.", "The easy road is how you got here.", "Be relentless or be forgotten."];
+  var pushIdx = null;
+  function dayIndex(k) { var h = 0; for (var i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) >>> 0; return h % LINES.length; }
+  function renderPush() {
+    var i = pushIdx == null ? dayIndex(cur) : pushIdx;
+    $('pushLine').textContent = LINES[i];
+    $('pushNum').textContent = '#' + (i + 1);
+  }
+  $('pushNext').onclick = function () {
+    var i = pushIdx == null ? dayIndex(cur) : pushIdx, n;
+    do { n = Math.floor(Math.random() * LINES.length); } while (n === i);
+    pushIdx = n; renderPush(); var pl = $('pushLine'); pl.classList.remove('swap'); void pl.offsetWidth; pl.classList.add('swap');
+  };
+
+  /* ---------- Work tasks ----------
+     One running list. A task shows on every day from when it was added until the day it was checked off,
+     so unfinished work carries over by itself. */
+  function tasksFor(k) {
+    return (S.tasks || []).filter(function (t) { return t.added <= k && (!t.done || t.done >= k); });
+  }
+  function syncWork(k) {
+    var auto = S.habits.filter(function (h) { return h.auto && !h.off; })[0]; if (!auto) return;
+    var ts = tasksFor(k);
+    if (ts.length) day(k).done[auto.id] = ts.every(function (t) { return t.done === k; });
+  }
+  function addTask() {
+    var v = $('newTask').value.trim(); if (!v) return;
+    S.tasks.push({ id: uid(), text: v, added: cur, done: null });
+    $('newTask').value = ''; syncWork(cur); save(); renderDay();
+  }
+  $('addTask').onclick = addTask;
+  $('newTask').onkeydown = function (e) { if (e.key === 'Enter') addTask(); };
+
+  /* ---------- Today ---------- */
+  var lastRendered = null, justId = null, lastPct = null;
+  function renderDay() {
+    var d = parse(cur);
+    if (lastRendered && lastRendered !== cur && !reduce) {
+      var dir = cur < lastRendered ? 'slide-r' : 'slide-l';
+      [].forEach.call($('v-day').querySelectorAll('section.card'), function (c) { c.classList.remove('slide-l', 'slide-r'); void c.offsetWidth; c.classList.add(dir); });
+    }
+    var dayChanged = lastRendered !== cur; lastRendered = cur;
+
+    renderPush(); renderWeek(); renderNag();
+    var dd = peek(cur) || { done: {}, mood: 0, energy: 0, note: '' };
+    var all = active(), n = 0;
+    var care = all.filter(function (h) { return !h.work; }), work = all.filter(function (h) { return h.work; });
+    var tasks = tasksFor(cur);
+    function habitBtn(h, list) {
+      var on = !!dd.done[h.id]; if (on) n++;
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'habit' + (on ? ' on' : '') + (justId === h.id ? ' just' : '');
+      b.setAttribute('aria-pressed', on);
+      var s = streak(h.id);
+      b.innerHTML = '<span class="box">' + (on ? '✓' : '') + '</span><span class="name"></span>' + (s > 1 ? '<span class="streak">' + s + ' day streak</span>' : '') + (h.link ? '<span class="auto" title="Checks itself from your log">AUTO</span>' : '');
+      b.querySelector('.name').textContent = h.name;
+      if (h.link) b.onclick = function () {
+        var sec = $(LINK_SECTION[h.link]); if (sec) sec.closest('section').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+        toast(on ? 'Done from your log' : 'Log ' + LINK_WORD[h.link] + ' below. This checks itself.');
+      };
+      else if (h.auto && tasks.length) b.onclick = function () { toast(on ? 'Clears when a task is unchecked' : 'Checks itself when every task is done'); };
+      else b.onclick = function () {
+        var x = day(cur); x.done[h.id] = !x.done[h.id]; justId = h.id; haptic(); save(); renderDay(); justId = null;
+        if (x.done[h.id] && !h.work) {
+          var c = active().filter(function (q) { return !q.work; });
+          if (c.every(function (q) { return x.done[q.id]; })) toast('Self-care list cleared. That’s how it’s done.');
+        }
+      };
+      list.appendChild(b);
+    }
+    $('habitList').innerHTML = ''; $('workList').innerHTML = '';
+    care.forEach(function (h) { habitBtn(h, $('habitList')); });
+    var careDone = n;
+    work.forEach(function (h) { habitBtn(h, $('workList')); });
+    if (!care.length) $('habitList').innerHTML = '<p class="muted" style="margin:0">No habits yet. Add some on the Habits tab.</p>';
+    $('doneCount').textContent = careDone + ' / ' + care.length;
+    $('habitList').parentNode.classList.toggle('cleared', care.length > 0 && careDone === care.length);
+    var ls = logStreak();
+    $('logStreak').textContent = ls > 1 ? 'Logged ' + ls + ' days in a row. Keep it going.' : '';
+    $('bar').style.width = all.length ? (n / all.length * 100) + '%' : '0';
+    var P = all.length ? n / all.length : 0;
+    $('heroArc').style.strokeDashoffset = (289.03 * (1 - P)).toFixed(2);
+    countTo($('heroPct'), Math.round(P * 100), dayChanged);
+    $('hero').classList.toggle('full', P === 1);
+    $('heroBig').textContent = n + ' of ' + all.length + ' done';
+    $('heroSub').textContent = P === 1 ? 'Everything done. Strong day.' : P >= 0.67 ? 'Close it out.' : P > 0 ? (all.length - n) + ' left. Keep moving.' : (cur === TODAY ? 'Nothing done yet. Start with one.' : 'Nothing logged this day.');
+    if (!dayChanged && lastPct !== null && lastPct < 1 && P === 1) { burst($('hero').querySelector('.ringwrap')); }
+    lastPct = P;
+
+    var tl = $('taskList'), tDone = 0; tl.innerHTML = '';
+    tasks.forEach(function (t) {
+      var on = t.done === cur; if (on) tDone++;
+      var r = document.createElement('div'); r.className = 'task';
+      var age = Math.round((parse(cur) - parse(t.added)) / 864e5);
+      r.innerHTML = '<button type="button" class="habit' + (on ? ' on' : '') + (justId === t.id ? ' just' : '') + '" aria-pressed="' + on + '"><span class="box">' + (on ? '✓' : '') + '</span><span class="name"></span>' +
+        (age > 0 && !on ? '<span class="carry">' + age + 'd old</span>' : '') + '</button><button type="button" class="del" aria-label="Delete task">✕</button>';
+      r.querySelector('.name').textContent = t.text;
+      var hb = r.querySelector('.habit'), held = false, timer;
+      hb.onclick = function () { if (held) { held = false; return; } t.done = on ? null : cur; syncWork(cur); justId = t.id; haptic(); save(); renderDay(); justId = null; if (!on && tasksFor(cur).every(function (q) { return q.done === cur; })) toast('All work done. Good.'); };
+      hb.addEventListener('pointerdown', function () { held = false; timer = setTimeout(function () { held = true; var v = prompt('Edit task', t.text); if (v && v.trim()) { t.text = v.trim(); save(); renderDay(); } }, 550); });
+      ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (ev) { hb.addEventListener(ev, function () { clearTimeout(timer); }); });
+      hb.oncontextmenu = function (e) { e.preventDefault(); };
+      r.querySelector('.del').onclick = function () {
+        var i = S.tasks.indexOf(t); S.tasks.splice(i, 1); syncWork(cur); save();
+        r.classList.add('out'); setTimeout(renderDay, reduce ? 0 : 160);
+        toast('Task deleted', 'Undo', function () { S.tasks.splice(i, 0, t); syncWork(cur); save(); renderDay(); });
+      };
+      tl.appendChild(r);
+    });
+    if (!tasks.length) tl.innerHTML = '<p class="muted" style="margin:0">Nothing on the list.</p>';
+    $('workCount').textContent = tasks.length ? tDone + ' / ' + tasks.length + ' tasks' : '';
+
+    rate($('rMood'), MOODS, dd.mood, function (v) { day(cur).mood = v; });
+    rate($('rEnergy'), ENERGY, dd.energy, function (v) { day(cur).energy = v; });
+    grow();
+  }
+  function countTo(el, to, instant) {
+    var from = parseInt(el.textContent, 10) || 0; cancelAnimationFrame(el._raf);
+    if (instant || reduce || from === to) { el.textContent = to + '%'; return; }
+    var t0 = performance.now(), dur = 500;
+    (function step(t) { var k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3); el.textContent = Math.round(from + (to - from) * e) + '%'; if (k < 1) el._raf = requestAnimationFrame(step); })(t0);
+  }
+  function grow() { var n = $('note'); n.style.height = 'auto'; n.style.height = Math.max(80, n.scrollHeight + 2) + 'px'; }
+  function logStreak() {
+    var k = (peek(TODAY) && pct(TODAY) !== null) ? TODAY : addDays(TODAY, -1), n = 0;
+    while (pct(k) !== null) { n++; k = addDays(k, -1); }
+    return n;
+  }
+  function renderWeek() {
+    var el = $('week'); el.innerHTML = '';
+    var end = addDays(cur, Math.max(0, Math.min(3, Math.round((parse(TODAY) - parse(cur)) / 864e5))));
+    for (var i = 6; i >= 0; i--) (function (k) {
+      var b = document.createElement('button'); b.type = 'button';
+      var d = parse(k), p = pct(k), future = k > TODAY;
+      b.className = k === cur ? 'sel' : '';
+      b.disabled = future; if (future) b.style.opacity = 0.35;
+      b.innerHTML = d.toLocaleDateString(undefined, { weekday: 'narrow' }) + '<b>' + d.getDate() + '</b><i class="ring" style="--p:' + (p === null ? 0 : Math.round(p * 100)) + '"></i>';
+      b.setAttribute('aria-label', d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }) + (p === null ? '' : ', ' + Math.round(p * 100) + '% done'));
+      b.onclick = function () { pushIdx = null; APP.setSel(k); };
+      el.appendChild(b);
+    })(addDays(end, -i));
+  }
+  function renderNag() {
+    var days = Math.max(Object.keys(S.days).length, APP.logDays().length), last = APP.lastBackup() || 0;
+    $('backupNag').hidden = !(days >= 3 && Date.now() - last > 7 * 864e5);
+  }
+  $('backupNag').onclick = function () { APP.go('settings'); setTimeout(function () { $('bCopy').scrollIntoView({ block: 'center' }); }, 50); };
+  $('dTitleBtn').onclick = function () { syncDate(); if (cur !== TODAY) { pushIdx = null; APP.setSel(TODAY); } };
+  /* Swipe left/right to change days */
+  (function () {
+    var x0 = null, y0 = 0;
+    $('v-day').addEventListener('touchstart', function (e) { if (e.target.closest('textarea,input')) return; x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+    $('v-day').addEventListener('touchend', function (e) {
+      if (x0 === null) return;
+      var dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
+      if (Math.abs(dx) < 70 || Math.abs(dy) > Math.abs(dx) * 0.6) return;
+      if (dx > 0) $('prev').click(); else if (cur < TODAY) $('next').click();
+    }, { passive: true });
+  })();
+  function rate(el, labels, val, set) {
+    el.innerHTML = '';
+    labels.forEach(function (l, i) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.setAttribute('aria-pressed', val === i + 1);
+      b.innerHTML = (i + 1) + '<small>' + l + '</small>';
+      b.onclick = function () { set(val === i + 1 ? 0 : i + 1); haptic(); save(); renderDay(); };
+      el.appendChild(b);
+    });
+  }
+  $('note').addEventListener('input', grow);
+  $('prev').onclick = function () { syncDate(); pushIdx = null; APP.setSel(addDays(cur, -1)); };
+  $('next').onclick = function () { syncDate(); pushIdx = null; if (cur < TODAY) APP.setSel(addDays(cur, 1)); };
+
+  /* ---------- Trends ---------- */
+  var RANGE = 30;
+  function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+  function avg(a) { return a.length ? a.reduce(function (s, x) { return s + x; }, 0) / a.length : null; }
+
+  function renderTrends() {
+    var keys = [];
+    for (var i = RANGE - 1; i >= 0; i--) keys.push(addDays(TODAY, -i));
+
+    // At a glance
+    var logged = keys.filter(function (k) { return pct(k) !== null; });
+    var avgPct = avg(logged.map(pct));
+    var moods = keys.map(function (k) { return peek(k) && peek(k).mood; }).filter(Boolean);
+    var best = active().map(function (h) { return { h: h, s: streak(h.id) }; }).sort(function (a, b) { return b.s - a.s; })[0];
+    $('stats').innerHTML =
+      '<div class="stat"><b>' + (avgPct === null ? '–' : Math.round(avgPct * 100) + '%') + '</b><span>Avg done</span></div>' +
+      '<div class="stat"><b>' + (moods.length ? avg(moods).toFixed(1) : '–') + '</b><span>Avg mood</span></div>' +
+      '<div class="stat"><b>' + logged.length + '</b><span>Days logged</span></div>';
+
+    insight(keys); wow(); rates(keys);
+    lineChart(keys);
+    bucketChart(keys);
+    impact(keys);
+    heat();
+  }
+
+  function insight(keys) {
+    var hi = [], lo = [];
+    keys.forEach(function (k) { var p = pct(k), m = peek(k) && peek(k).mood; if (p === null || !m) return; (p >= 0.67 ? hi : lo).push(m); });
+    var el = $('insight');
+    if (hi.length >= 3 && lo.length >= 3) {
+      var d = avg(hi) - avg(lo);
+      el.textContent = d > 0.15 ? 'On days you get through most of your list, your mood runs ' + d.toFixed(1) + ' points higher. The work pays off.'
+        : d < -0.15 ? 'Your mood has been lower on your busiest days. Check your sleep and whether you’re overloading the list.'
+        : 'So far your mood is about the same either way. Keep logging, the pattern needs more days.';
+    } else el.textContent = 'Log habits and mood for a couple of weeks and this will tell you what the data says.';
+  }
+  function wow() {
+    function wk(off) {
+      var ps = [], ms = [];
+      for (var i = 0; i < 7; i++) { var k = addDays(TODAY, -(i + off)); var p = pct(k); if (p !== null) ps.push(p); var m = peek(k) && peek(k).mood; if (m) ms.push(m); }
+      return { p: avg(ps), m: avg(ms), n: ps.length };
+    }
+    var a = wk(0), b = wk(7);
+    function cell(v, prev, fmt, label) {
+      var arrow = '';
+      if (v !== null && prev !== null) { var d = v - prev; arrow = Math.abs(d) < 0.01 ? ' <small>=</small>' : d > 0 ? ' <small style="color:var(--good)">▲</small>' : ' <small style="color:var(--danger)">▼</small>'; }
+      return '<div class="stat"><b>' + (v === null ? '–' : fmt(v)) + arrow + '</b><span>' + label + '</span></div>';
+    }
+    $('wow').innerHTML = cell(a.p, b.p, function (v) { return Math.round(v * 100) + '%'; }, 'Done (last wk ' + (b.p === null ? '–' : Math.round(b.p * 100) + '%') + ')') +
+      cell(a.m, b.m, function (v) { return v.toFixed(1); }, 'Mood (last wk ' + (b.m === null ? '–' : b.m.toFixed(1)) + ')') +
+      cell(a.n, b.n, function (v) { return v + '/7'; }, 'Days logged');
+  }
+  function rates(keys) {
+    var logged = keys.filter(function (k) { return pct(k) !== null; }), el = $('rates');
+    if (!logged.length) { el.innerHTML = '<p class="muted" style="margin:0">Nothing logged in this range yet.</p>'; return; }
+    el.innerHTML = '';
+    active().map(function (h) {
+      return { h: h, r: logged.filter(function (k) { return peek(k).done[h.id]; }).length / logged.length };
+    }).sort(function (a, b) { return b.r - a.r; }).forEach(function (o) {
+      var row = document.createElement('div'); row.className = 'rt';
+      row.innerHTML = '<span class="n"></span><span class="v">' + Math.round(o.r * 100) + '%</span><div class="progress"><i style="width:' + (o.r * 100) + '%;background:' + (o.r >= 0.7 ? 'var(--good)' : o.r >= 0.4 ? 'var(--warn)' : 'var(--danger)') + '"></i></div>';
+      row.querySelector('.n').textContent = o.h.name;
+      el.appendChild(row);
+    });
+  }
+
+  function lineChart(keys) {
+    var W = 340, H = 170, L = 26, R = 26, T = 8, B = 20, iw = W - L - R, ih = H - T - B;
+    var n = keys.length, bw = iw / n;
+    var good = css('--good'), mood = css('--mood'), en = css('--energy'), line = css('--line');
+    var s = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Habits done and mood by day">';
+    for (var g = 0; g <= 4; g++) {
+      var y = T + ih - ih * g / 4;
+      s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y + '" y2="' + y + '" stroke="' + line + '" stroke-width="1"/>';
+      s += '<text x="' + (L - 4) + '" y="' + (y + 3) + '" text-anchor="end">' + (g * 25) + '%</text>';
+      s += '<text x="' + (W - R + 4) + '" y="' + (y + 3) + '">' + (g + 1) + '</text>';
+    }
+    keys.forEach(function (k, i) {
+      var p = pct(k); if (p === null) return;
+      var h = Math.max(p * ih, 1.5);
+      s += '<rect x="' + (L + i * bw + bw * 0.15) + '" y="' + (T + ih - h) + '" width="' + (bw * 0.7) + '" height="' + h + '" rx="1.5" fill="' + good + '" opacity=".55"/>';
+    });
+    function path(field, color) {
+      var d = '', pts = '';
+      keys.forEach(function (k, i) {
+        var v = peek(k) && peek(k)[field]; if (!v) return;
+        var x = L + i * bw + bw / 2, y = T + ih - ih * (v - 1) / 4;
+        d += (d ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
+        pts += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="2.5" fill="' + color + '"/>';
+      });
+      return d ? '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' + pts : '';
+    }
+    s += path('energy', en) + path('mood', mood);
+    var step = Math.ceil(n / 6);
+    keys.forEach(function (k, i) {
+      if ((n - 1 - i) % step) return;
+      var d = parse(k);
+      s += '<text x="' + (L + i * bw + bw / 2) + '" y="' + (H - 4) + '" text-anchor="middle">' + (d.getMonth() + 1) + '/' + d.getDate() + '</text>';
+    });
+    s += '</svg>';
+    $('lineChart').innerHTML = s;
+  }
+
+  function bucketChart(keys) {
+    var b = [[], [], []];
+    keys.forEach(function (k) {
+      var p = pct(k), m = peek(k) && peek(k).mood;
+      if (p === null || !m) return;
+      b[p < 0.34 ? 0 : p < 0.67 ? 1 : 2].push(m);
+    });
+    var labels = ['Under a third', 'A third to two thirds', 'Two thirds or more'];
+    var W = 340, H = 150, L = 8, B = 34, T = 18, ih = H - T - B, bw = (W - L * 2) / 3;
+    var mood = css('--mood'), sunk = css('--sunk');
+    var s = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Average mood by how much of the list was done">';
+    b.forEach(function (arr, i) {
+      var a = avg(arr), x = L + i * bw + bw * 0.18, w = bw * 0.64;
+      s += '<rect x="' + x + '" y="' + T + '" width="' + w + '" height="' + ih + '" rx="6" fill="' + sunk + '"/>';
+      if (a !== null) {
+        var h = ih * a / 5;
+        s += '<rect x="' + x + '" y="' + (T + ih - h) + '" width="' + w + '" height="' + h + '" rx="6" fill="' + mood + '"/>';
+        s += '<text x="' + (x + w / 2) + '" y="' + (T + ih - h - 5) + '" text-anchor="middle" style="font-size:12px;font-weight:600;fill:var(--fg)">' + a.toFixed(1) + '</text>';
+      } else {
+        s += '<text x="' + (x + w / 2) + '" y="' + (T + ih / 2) + '" text-anchor="middle">no days</text>';
+      }
+      s += '<text x="' + (x + w / 2) + '" y="' + (H - 18) + '" text-anchor="middle">' + labels[i] + '</text>';
+      s += '<text x="' + (x + w / 2) + '" y="' + (H - 5) + '" text-anchor="middle">' + arr.length + ' day' + (arr.length === 1 ? '' : 's') + '</text>';
+    });
+    $('bucketChart').innerHTML = s + '</svg>';
+  }
+
+  function impact(keys) {
+    var out = [], el = $('impact');
+    S.habits.forEach(function (h) {
+      var yes = [], no = [];
+      keys.forEach(function (k) {
+        var d = peek(k); if (!d || !d.mood) return;
+        (d.done[h.id] ? yes : no).push(d.mood);
+      });
+      if (!yes.length && !no.length) return;
+      if (h.off && !yes.length) return;
+      out.push({ h: h, yes: yes, no: no, diff: (yes.length >= 3 && no.length >= 3) ? avg(yes) - avg(no) : null });
+    });
+    out.sort(function (a, b) { return (b.diff === null ? -9 : b.diff) - (a.diff === null ? -9 : a.diff); });
+    if (!out.length) { el.innerHTML = '<p class="muted" style="margin:0">Log your mood for a few days and this fills in.</p>'; return; }
+    el.innerHTML = '';
+    out.forEach(function (o) {
+      var row = document.createElement('div'); row.className = 'imp';
+      var txt, bar = '';
+      if (o.diff === null) {
+        txt = '<span class="v muted">need more days</span>';
+        var need = Math.max(0, 3 - o.yes.length) + Math.max(0, 3 - o.no.length);
+        bar = '<div class="sub">Needs at least 3 done days and 3 skipped days with a mood logged (' + o.yes.length + ' done, ' + o.no.length + ' skipped so far).</div>';
+      } else {
+        var d = o.diff, w = Math.min(Math.abs(d) / 2, 1) * 50;
+        var color = d >= 0 ? 'var(--good)' : 'var(--danger)';
+        txt = '<span class="v" style="color:' + color + '">' + (d >= 0 ? '+' : '−') + Math.abs(d).toFixed(1) + ' mood</span>';
+        bar = '<div class="track"><i style="background:' + color + ';' + (d >= 0 ? 'left:50%' : 'right:50%') + ';width:' + w + '%"></i></div>' +
+          '<div class="sub">' + avg(o.yes).toFixed(1) + ' on ' + o.yes.length + ' days done · ' + avg(o.no).toFixed(1) + ' on ' + o.no.length + ' days skipped</div>';
+      }
+      row.innerHTML = '<span class="n"></span>' + txt + bar;
+      row.querySelector('.n').textContent = o.h.name + (o.h.off ? ' (removed)' : '');
+      el.appendChild(row);
+    });
+  }
+
+  function heat() {
+    var el = $('heat'), good = css('--good');
+    var html = ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(function (d) { return '<div class="hd">' + d + '</div>'; }).join('');
+    var start = parse(addDays(TODAY, -83)); start.setDate(start.getDate() - start.getDay());
+    var k = key(start);
+    while (k <= TODAY || parse(k).getDay() !== 0) {
+      if (k > TODAY) { html += '<div style="background:none"></div>'; }
+      else {
+        var p = pct(k);
+        var st = p === null ? '' : 'background:color-mix(in srgb, ' + good + ' ' + Math.round(15 + p * 85) + '%, var(--sunk))';
+        html += '<div class="' + (k === TODAY ? 'td' : '') + '" style="' + st + '" title="' + k + (p === null ? '' : ': ' + Math.round(p * 100) + '%') + '"></div>';
+      }
+      k = addDays(k, 1);
+    }
+    el.innerHTML = html;
+  }
+
+  $('range').onclick = function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    RANGE = +b.dataset.n;
+    [].forEach.call(this.children, function (c) { c.setAttribute('aria-pressed', c === b); });
+    renderTrends();
+  };
+
+  /* ---------- Settings: habits editor ---------- */
+  function renderSet() {
+    var el = $('editList'); el.innerHTML = '';
+    var hs = active();
+    hs.forEach(function (h, i) {
+      var r = document.createElement('div'); r.className = 'edit';
+      var bst = bestStreak(h.id);
+      r.innerHTML = '<input type="text" maxlength="40" aria-label="Habit name">' + (bst > 1 ? '<span class="best" title="Best streak">best ' + bst + 'd</span>' : '') + '<button type="button" aria-label="Move up">↑</button><button type="button" aria-label="Remove">✕</button>';
+      var inp = r.querySelector('input'); inp.value = h.name;
+      if (h.work) inp.placeholder = 'Work habit';
+      if (h.work || h.link) { var tg = document.createElement('span'); tg.className = 'tag'; tg.textContent = h.work ? 'Work' : 'Auto'; r.insertBefore(tg, r.children[1]); }
+      inp.onchange = function () { var v = inp.value.trim(); if (v) { h.name = v; save(); } else inp.value = h.name; };
+      var bs = r.querySelectorAll('button');
+      bs[0].disabled = i === 0; bs[0].style.opacity = i === 0 ? 0.3 : 1;
+      bs[0].onclick = function () { var a = S.habits.indexOf(h), b = S.habits.indexOf(hs[i - 1]); S.habits[a] = hs[i - 1]; S.habits[b] = h; save(); renderSet(); };
+      bs[1].onclick = function () { h.off = true; save(); renderSet(); toast('Removed ' + h.name, 'Undo', function () { h.off = false; save(); renderSet(); }); };
+      el.appendChild(r);
+    });
+    var gone = S.habits.filter(function (h) { return h.off; }), rl = $('removedList');
+    $('removedWrap').hidden = !gone.length; rl.innerHTML = '';
+    gone.forEach(function (h) {
+      var r = document.createElement('div'); r.className = 'edit';
+      r.innerHTML = '<span class="name muted" style="flex:1"></span><button type="button">Restore</button>';
+      r.querySelector('.name').textContent = h.name;
+      r.querySelector('button').onclick = function () { h.off = false; save(); renderSet(); toast('Restored ' + h.name); };
+      rl.appendChild(r);
+    });
+  }
+  function bestStreak(id) {
+    var ks = Object.keys(S.days).filter(function (k) { return S.days[k].done[id]; }).sort(), best = 0, run = 0, prev = null;
+    ks.forEach(function (k) { run = prev && addDays(prev, 1) === k ? run + 1 : 1; best = Math.max(best, run); prev = k; });
+    return best;
+  }
+  function addHabit() {
+    var v = $('newHabit').value.trim(); if (!v) return;
+    S.habits.push({ id: 'h' + (S.next++), name: v, off: false });
+    $('newHabit').value = ''; save(); renderSet(); toast('Added');
+  }
+  $('addHabit').onclick = addHabit;
+  $('newHabit').onkeydown = function (e) { if (e.key === 'Enter') addHabit(); };
+
+  function csvText() {
+    syncAllLinks();
+    var hs = S.habits, rows = [['Date'].concat(hs.map(function (h) { return h.name; }), ['Done %', 'Mood', 'Energy'])];
+    Object.keys(S.days).sort().forEach(function (k) {
+      var d = S.days[k], p = pct(k);
+      rows.push([k].concat(hs.map(function (h) { return d.done[h.id] ? 1 : 0; }), [p === null ? '' : Math.round(p * 100), d.mood || '', d.energy || '']));
+    });
+    return rows.map(function (r) { return r.map(function (c) { c = String(c); return /[",\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; }).join(','); }).join('\n');
+  }
+
+  window.HB = {
+    renderToday: function () { syncDate(); syncAllLinks(); renderDay(); },
+    renderTrends: function () { syncDate(); syncAllLinks(); renderTrends(); },
+    renderSettings: function () { syncDate(); renderSet(); },
+    dayPct: function (k) { syncLinks(k); return pct(k); },
+    state: function () { return S; },
+    restore: function (d) { S = d; migrate(); migrate3(); save(); },
+    csv: csvText,
+    toast: toast, haptic: haptic, reduce: reduce
+  };
+})();
+APP.render();
+</script>
+<script>
+if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
   window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
 }
 </script>
