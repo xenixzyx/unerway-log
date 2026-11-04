@@ -28,6 +28,11 @@
     --mood: #e57aa9; --energy: #e0b443; color-scheme: dark;
   }
 }
+:root[data-theme="dark"] {
+  --bg: #0c1116; --surface: #151d25; --sunk: #0f161c; --fg: #e3e9ee; --muted: #8796a3; --line: #25313b;
+  --accent: #4fa7c6; --accent-fg: #05131a; --good: #4fbf80; --warn: #e0b443; --danger: #e46a5d;
+  --mood: #e57aa9; --energy: #e0b443; color-scheme: dark;
+}
 :root.red {
   --bg: #000; --surface: #110000; --sunk: #080000; --fg: #ff3b2f; --muted: #a8261c; --line: #3a0905;
   --accent: #d01b0f; --accent-fg: #000; --good: #ff3b2f; --warn: #d01b0f; --danger: #ff6a5f;
@@ -115,6 +120,31 @@ svg.chart text { font-family: var(--font-ui); font-size: 10px; fill: var(--muted
 .carry { font-size: 0.7rem; color: var(--warn); font-family: var(--font-num); }
 .tag { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
 
+/* QOL */
+button, .habit, nav.tabs button { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+.habit.on .box { animation: pop .18s ease-out; }
+@keyframes pop { 0% { transform: scale(.7); } 70% { transform: scale(1.12); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+.week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.week button { min-height: 58px; padding: 4px 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 0.68rem; color: var(--muted); }
+.week button b { font-family: var(--font-num); font-size: 0.95rem; color: var(--fg); font-weight: 500; }
+.week button.sel { border-color: var(--accent); background: var(--sunk); }
+.week button.sel b { color: var(--accent); font-weight: 700; }
+.ring { width: 16px; height: 16px; border-radius: 50%; background: conic-gradient(var(--good) calc(var(--p) * 1%), var(--sunk) 0); }
+.cleared { border-color: var(--good) !important; box-shadow: 0 0 0 1px var(--good) inset; }
+.banner { background: var(--sunk); border: 1px solid var(--warn); border-radius: 12px; padding: 10px 12px; display: flex; gap: 10px; align-items: center; font-size: 0.85rem; text-align: left; width: 100%; }
+.saved { font-size: 0.72rem; color: var(--muted); min-height: 1em; text-align: right; }
+.toast { display: flex; align-items: center; gap: 12px; }
+.toast button { min-height: 32px; padding: 0 10px; background: none; border: none; color: var(--accent); font-weight: 700; }
+.rates { display: flex; flex-direction: column; gap: 8px; }
+.rt { display: grid; grid-template-columns: 1fr 44px; gap: 4px 10px; align-items: center; font-size: 0.88rem; }
+.rt .v { font-family: var(--font-num); text-align: right; font-size: 0.85rem; }
+.rt .progress { grid-column: 1 / -1; height: 6px; }
+.insight { margin: 0; font-size: 0.95rem; line-height: 1.45; }
+.best { font-size: 0.7rem; color: var(--muted); white-space: nowrap; font-family: var(--font-num); }
+#dTitleBtn { background: none; border: none; min-height: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+textarea#note { overflow: hidden; }
+
 /* Habit editor */
 .edit { display: flex; gap: 6px; align-items: center; }
 .edit input { flex: 1; }
@@ -133,9 +163,12 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
   <div id="v-day" class="view">
     <div class="datebar">
       <button type="button" class="icon-btn" id="prev" aria-label="Previous day">‹</button>
-      <h1><span class="sub" id="dSub">Today</span><span id="dTitle"></span></h1>
+      <h1><button type="button" id="dTitleBtn" aria-label="Jump to today"><span class="sub" id="dSub">Today</span><span id="dTitle"></span></button></h1>
       <button type="button" class="icon-btn" id="next" aria-label="Next day">›</button>
     </div>
+
+    <div class="week" id="week" aria-label="This week"></div>
+    <button type="button" class="banner" id="backupNag" hidden>⚠️ <span>It’s been a while since your last backup. Tap to back up now so you don’t lose your log.</span></button>
 
     <section class="card" id="pushCard">
       <h2>Today’s reminder <span class="right" id="pushNum"></span></h2>
@@ -147,6 +180,7 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
       <h2>Self-care <span class="right" id="doneCount"></span></h2>
       <div class="progress"><i id="bar"></i></div>
       <div class="habits" id="habitList"></div>
+      <div class="muted" id="logStreak"></div>
     </section>
 
     <section class="card">
@@ -155,7 +189,7 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
       <div class="rlabel">Work to get done</div>
       <div class="habits" id="taskList"></div>
       <div class="edit"><input type="text" id="newTask" placeholder="Add work to do" maxlength="80"><button type="button" class="btn-primary" id="addTask" aria-label="Add task">+</button></div>
-      <p class="muted" style="margin:0">Anything you don’t finish carries over to tomorrow. “All work done” checks itself when the list is clear.</p>
+      <p class="muted" style="margin:0">Unfinished work carries over to tomorrow. “All work done” checks itself when the list is clear. Press and hold a task to edit it.</p>
     </section>
 
     <section class="card">
@@ -165,6 +199,7 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
       <div class="rlabel">Energy</div>
       <div class="rate" id="rEnergy"></div>
       <textarea id="note" placeholder="Anything worth noting today? (optional)"></textarea>
+      <div class="saved" id="noteSaved"></div>
     </section>
   </div>
 
@@ -180,6 +215,12 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
     <section class="card">
       <h2>At a glance</h2>
       <div class="stats" id="stats"></div>
+      <p class="insight" id="insight"></p>
+    </section>
+
+    <section class="card">
+      <h2>This week vs last week</h2>
+      <div class="stats" id="wow"></div>
     </section>
 
     <section class="card">
@@ -201,6 +242,11 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
     </section>
 
     <section class="card">
+      <h2>How often I do each habit</h2>
+      <div class="rates" id="rates"></div>
+    </section>
+
+    <section class="card">
       <h2>Last 12 weeks</h2>
       <div class="heat" id="heat"></div>
       <div class="legend"><span>Brighter = more of your list done</span></div>
@@ -215,6 +261,10 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
       <div id="editList" class="habits"></div>
       <div class="edit"><input type="text" id="newHabit" placeholder="Add a habit" maxlength="40"><button type="button" class="btn-primary" id="addHabit" aria-label="Add habit">+</button></div>
       <p class="muted" style="margin:0">Removing a habit hides it but keeps its history in your trends.</p>
+      <div id="removedWrap" hidden>
+        <div class="rlabel" style="margin-bottom:6px">Removed habits</div>
+        <div id="removedList" class="habits"></div>
+      </div>
     </section>
     <section class="card">
       <h2>Ship time <span class="right" id="shipOffTxt"></span></h2>
@@ -233,12 +283,18 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
     </section>
     <section class="card">
       <h2>Display</h2>
+      <div class="seg" id="themeSeg">
+        <button type="button" data-t="auto">Auto</button>
+        <button type="button" data-t="dark">Dark</button>
+        <button type="button" data-t="light">Light</button>
+      </div>
       <div class="row"><button type="button" id="redBtn" aria-pressed="false">Red light mode</button></div>
     </section>
     <section class="card">
       <h2>Backup</h2>
       <p class="muted" style="margin:0">Your log lives only on this phone. Copy a backup now and then and paste it in Notes, or email it to yourself.</p>
-      <div class="row"><button type="button" id="bCopy">Copy backup</button></div>
+      <div class="row"><button type="button" id="bCopy">Copy backup</button><button type="button" id="csvCopy">Copy as spreadsheet (CSV)</button></div>
+      <div class="muted" id="lastBackup"></div>
       <textarea id="bText" placeholder="Paste a backup here to restore it"></textarea>
       <div class="row"><button type="button" id="bRestore">Restore from pasted backup</button><span class="muted" id="bMsg"></span></div>
     </section>
@@ -305,7 +361,11 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
     return n;
   }
 
-  function toast(msg) { var t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(function () { t.hidden = true; }, 1600); }
+  function toast(msg, label, fn) {
+    var t = $('toast'); t.innerHTML = ''; var sp = document.createElement('span'); sp.textContent = msg; t.appendChild(sp);
+    if (label) { var b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.onclick = function () { t.hidden = true; fn(); }; t.appendChild(b); }
+    t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(function () { t.hidden = true; }, label ? 4500 : 1600);
+  }
 
   /* ---------- Daily reminder ---------- */
   var LINES = ["You said you'd change. You lied. Again.", "Your potential is a joke until you use it.", "Nobody cares how smart you are if you never do anything with it.", "You're not tired. You're soft. Get up.", "Every day you scroll, someone with less talent passes you.", "You've been \"about to start\" for years.", "Stop crying about it and go do it.", "Your excuses are pathetic and you know it.", "You keep choosing the easy thing. That's why nothing changes.", "You're wasting a brain that scored a 96. Embarrassing.", "Talk is cheap. You've been cheap.", "You want greatness but won't do one set of pushups. Pick one.", "You're letting a phone beat you. A phone.", "The man you could be is disgusted by how you spent today.", "Comfort is making you weak and you're letting it.", "You've broken more promises to yourself than to anyone alive.", "Nobody is coming to save you. Nobody ever was.", "Your future self is paying for your laziness right now.", "You don't lack time. You lack spine.", "Quit lying to yourself about tomorrow.", "Every skipped workout is you choosing weak.", "You know exactly what's wrong. You're just too comfortable to fix it.", "Stop acting like a victim of your own habits.", "You'd never let a shipmate slack this hard. Why do you let yourself?", "Discipline or regret. You've been picking regret.", "You keep feeding the weak version of you. Starve him.", "Your friends were right. You don't apply yourself. Fix it.", "You had a whole day and wasted it. Don't do it twice.", "Get off your rack and earn your rest.", "Cheap dopamine is making you cheap.", "You're trading your future for thirty seconds of scrolling. Idiot trade.", "Stop waiting to feel like it. You never will.", "You don't get to complain about results you didn't work for.", "Every lazy day is a vote for the man you hate being.", "You're better than this and that's what makes it unforgivable.", "Wasted talent is worse than no talent.", "You have no right to be proud of potential you never used.", "Nobody remembers the guy who almost did something.", "Weak habits, weak life. Change the habits.", "You're the reason you're stuck. Own it.", "Stop hiding in your phone. Face the work.", "You quit on yourself every day and call it rest.", "Your comfort zone is a cage you built yourself.", "You were built for more than this and you're throwing it away.", "The excuse sounds good. It's still an excuse.", "Get angry. Then get to work.", "You keep negotiating with weakness and losing.", "Stop being the guy who talks big and does nothing.", "You promised yourself. Keep your word, or admit it means nothing.", "If you can't keep a promise to yourself, what is your word worth?", "Soft choices today. Hard life later. Your call.", "You're not stuck. You're lazy. Be honest.", "Doing nothing is a choice. You've been making it every day.", "You want the reward without the pain. Grow up.", "Change the inputs or stop complaining about the output.", "You're capable of so much and doing so little. Unacceptable.", "The clock doesn't care about your feelings. Neither does your future.", "Stop scrolling through other men's wins while you take losses.", "Nobody owes you anything. Go take it.", "Sitting around won't fix anything. You already know that.", "You survived nuke school to waste your nights on a screen?", "Earn the right to rest. You haven't yet.", "Pain of discipline or pain of regret. Choose now.", "Stop being a spectator in your own life.", "Every hour you waste, someone hungrier is working.", "Be honest: would you respect a man who lived your last week?", "Quit wanting it. Start taking it.", "Weakness is a habit. Break it.", "You don't need motivation. You need to stop being soft.", "Your goals laugh at you every time you open that app.", "You're not too busy. You're undisciplined.", "Stop looking for the easy way. There isn't one.", "You were given a mind most people would kill for. Use it or lose it.", "No more \"tomorrow.\" Tomorrow is how you've been losing.", "Don't you dare waste another day.", "Get mad at your habits, not at the world.", "Make the weak part of you sick of losing.", "Every rep you skip is a little bit of quitting.", "You know what champions do on days like this? They show up.", "Your mood is not your boss.", "Stop treating yourself like you're fragile.", "Pathetic is a choice. Choose something else today.", "You are your habits. Look at them. Are you proud?", "Stop asking for permission to be great.", "The guy you want to be would walk past you right now.", "Burn the excuse. Do the work.", "You can't be great and comfortable at the same time.", "Get your head out of your phone and your life in order.", "You don't get a medal for meaning well.", "Prove it. Today. Not someday.", "Your potential is expiring every day you don't use it.", "Nobody's impressed by what you could do.", "You're one decision from respecting yourself again. Make it.", "Lazy is easy. That's why it's beating you.", "Grow a backbone and pick up the weight.", "You're letting temporary feelings make permanent decisions.", "Every day you don't change, you're choosing to stay this way.", "You don't get to be mad about results you keep choosing.", "Stop rewarding yourself for nothing.", "If you were your own chief, you'd write yourself up.", "Stand your watch over your own life. You've been asleep on it.", "You'd never accept this effort from a shipmate. Don't accept it from you.", "The boat demands standards. Demand them of yourself.", "You hold it together at work and fall apart alone. Stop.", "Be as hard on your habits as the Navy is on your quals.", "Stop leaving your discipline at the brow.", "You've earned nothing today yet. Go earn it.", "Hard truth: you've been choosing this.", "Wake up. The years are going by.", "No one is going to drag you out of this. Walk out.", "Quit being comfortable with being average.", "If it's not happening, it's because you're not doing it.", "Your potential has been waiting long enough. Move.", "You want respect? Do something respectable today.", "That scroll you're about to do? Don't.", "Be the problem for your excuses, not the other way around.", "You don't need another plan. You need to stop quitting.", "Average men make excuses. Which one are you today?", "Every time you give in, the weak habit gets stronger.", "Stop feeding the habits that are killing your future.", "Act like your life depends on it. It does.", "What you tolerate, you keep. Stop tolerating this.", "You're sick of being like this? Prove it.", "Hating where you are isn't enough. Move.", "Feeling bad changes nothing. Action does.", "Stop wishing. Start grinding.", "Nobody's watching. Do it anyway. That's the test.", "Discipline when nobody checks is the only kind that counts.", "Your word to yourself has been worthless. Make it worth something today.", "Stop flinching at hard things.", "You talk about greatness. Greatness doesn't talk. It works.", "Shut the phone. Hit the floor. Now.", "Do the pushups before you finish reading this.", "Make your excuses tired of losing.", "You're going to keep feeling like this until you change what you do.", "The weak you wants the snack, the scroll, the nap. Tell him no.", "Win today or admit you didn't try.", "The chain breaks today or it doesn't. You decide.", "Nobody climbs by lying down.", "You know better. Do better.", "Pressure builds diamonds. Comfort builds nothing.", "You keep hitting snooze on your own life.", "Stop being impressed with yourself for planning.", "You've planned enough to last a lifetime. Execute.", "Stop rebuilding the system and do the reps.", "Complaining is free. That's why it's worth nothing.", "You're stronger than your cravings. Prove it.", "One more day of weak choices makes it harder tomorrow.", "You can be uncomfortable now or miserable later.", "Stop letting the worst version of you run the show.", "There's no prize for the most potential.", "Hungry men don't scroll. They work.", "Your life is the sum of your choices. Choose harder.", "You don't need to feel ready. Soldiers rarely do.", "Get tough or get used to staying the same.", "Nobody's coming. Again: nobody is coming.", "Stop being the most talented quitter you know.", "You have zero excuses that survive honest daylight.", "The work is waiting and you're stalling. Again.", "Don't let today be another loss.", "You can't scroll away from who you are. You can work toward who you want to be.", "Tired? Good. Do it tired.", "Sore? Good. Means you did something.", "Bored? Good. Discipline is boring. Do it anyway.", "You want it easy. It won't be. Deal with it.", "Don't you dare go to bed with nothing checked.", "You're wasting the youngest, strongest years you'll ever have.", "Your twenties are not a rehearsal.", "Make the next ten minutes violent with effort.", "Attack the list. Don't stare at it.", "You're done being soft. Start acting like it.", "Stop being nice to your excuses.", "Every weak moment you allow trains you to be weak.", "Train yourself like a weapon, not a pet.", "Stop babying yourself.", "Respect is earned. Earn your own.", "You'll never be proud of a life you didn't fight for.", "Fight for it or shut up about wanting it.", "You quit too early. Every time. Not today.", "Finish. What. You. Start.", "Your laziness is louder than your goals. Turn it down.", "You're going to look back on today. Make it worth remembering.", "Get after it. No more warnings.", "The only thing between you and better is you.", "Beat the version of you that showed up yesterday.", "Stop accepting less from yourself.", "You know what to do. You're out of reasons not to.", "Go. Right now. Not after one more video.", "Either do it or stop pretending you want it.", "Close this app and go do the first thing on the list.", "Your cravings don't get a vote.", "Stop asking how you feel. Ask what you did.", "You've had enough chances. Use this one.", "Stop being average on purpose.", "Excuses or results. You can't have both.", "You were made for hard things. Act like it.", "Every \"later\" you say is a small surrender.", "Hold the line. Don't give in tonight.", "The easy road is how you got here.", "Be relentless or be forgotten."];
@@ -350,7 +410,7 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
     $('next').disabled = cur >= TODAY;
     $('next').style.opacity = cur >= TODAY ? 0.3 : 1;
 
-    renderPush();
+    renderPush(); renderWeek(); renderNag();
     var dd = peek(cur) || { done: {}, mood: 0, energy: 0, note: '' };
     var all = active(), n = 0;
     var care = all.filter(function (h) { return !h.work; }), work = all.filter(function (h) { return h.work; });
@@ -364,7 +424,13 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
       b.innerHTML = '<span class="box">' + (on ? '✓' : '') + '</span><span class="name"></span>' + (s > 1 ? '<span class="streak">' + s + ' day streak</span>' : '');
       b.querySelector('.name').textContent = h.name;
       if (h.auto && tasks.length) b.onclick = function () { toast(on ? 'Clears when a task is unchecked' : 'Checks itself when every task is done'); };
-      else b.onclick = function () { var x = day(cur); x.done[h.id] = !x.done[h.id]; save(); renderDay(); };
+      else b.onclick = function () {
+        var x = day(cur); x.done[h.id] = !x.done[h.id]; save(); renderDay();
+        if (x.done[h.id] && !h.work) {
+          var c = active().filter(function (q) { return !q.work; });
+          if (c.every(function (q) { return x.done[q.id]; })) toast('Self-care list cleared. That’s how it’s done.');
+        }
+      };
       list.appendChild(b);
     }
     $('habitList').innerHTML = ''; $('workList').innerHTML = '';
@@ -373,6 +439,9 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
     work.forEach(function (h) { habitBtn(h, $('workList')); });
     if (!care.length) $('habitList').innerHTML = '<p class="muted" style="margin:0">No habits yet. Add some on the Habits tab.</p>';
     $('doneCount').textContent = careDone + ' / ' + care.length;
+    $('habitList').parentNode.classList.toggle('cleared', care.length > 0 && careDone === care.length);
+    var ls = logStreak();
+    $('logStreak').textContent = ls > 1 ? 'Logged ' + ls + ' days in a row. Keep it going.' : '';
     $('bar').style.width = all.length ? (n / all.length * 100) + '%' : '0';
 
     var tl = $('taskList'), tDone = 0; tl.innerHTML = '';
@@ -383,8 +452,15 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
       r.innerHTML = '<button type="button" class="habit' + (on ? ' on' : '') + '" aria-pressed="' + on + '"><span class="box">' + (on ? '✓' : '') + '</span><span class="name"></span>' +
         (age > 0 && !on ? '<span class="carry">' + age + 'd old</span>' : '') + '</button><button type="button" class="del" aria-label="Delete task">✕</button>';
       r.querySelector('.name').textContent = t.text;
-      r.querySelector('.habit').onclick = function () { t.done = on ? null : cur; syncWork(cur); save(); renderDay(); };
-      r.querySelector('.del').onclick = function () { if (confirm('Delete "' + t.text + '"?')) { S.tasks.splice(S.tasks.indexOf(t), 1); syncWork(cur); save(); renderDay(); } };
+      var hb = r.querySelector('.habit'), held = false, timer;
+      hb.onclick = function () { if (held) { held = false; return; } t.done = on ? null : cur; syncWork(cur); save(); renderDay(); if (!on && tasksFor(cur).every(function (q) { return q.done === cur; })) toast('All work done. Good.'); };
+      hb.addEventListener('pointerdown', function () { held = false; timer = setTimeout(function () { held = true; var v = prompt('Edit task', t.text); if (v && v.trim()) { t.text = v.trim(); save(); renderDay(); } }, 550); });
+      ['pointerup', 'pointerleave', 'pointercancel'].forEach(function (ev) { hb.addEventListener(ev, function () { clearTimeout(timer); }); });
+      hb.oncontextmenu = function (e) { e.preventDefault(); };
+      r.querySelector('.del').onclick = function () {
+        var i = S.tasks.indexOf(t); S.tasks.splice(i, 1); syncWork(cur); save(); renderDay();
+        toast('Task deleted', 'Undo', function () { S.tasks.splice(i, 0, t); syncWork(cur); save(); renderDay(); });
+      };
       tl.appendChild(r);
     });
     if (!tasks.length) tl.innerHTML = '<p class="muted" style="margin:0">Nothing on the list.</p>';
@@ -392,8 +468,45 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
 
     rate($('rMood'), MOODS, dd.mood, function (v) { day(cur).mood = v; });
     rate($('rEnergy'), ENERGY, dd.energy, function (v) { day(cur).energy = v; });
-    $('note').value = dd.note || '';
+    $('note').value = dd.note || ''; $('noteSaved').textContent = ''; grow();
   }
+  function grow() { var n = $('note'); n.style.height = 'auto'; n.style.height = Math.max(80, n.scrollHeight + 2) + 'px'; }
+  function logStreak() {
+    var k = (peek(TODAY) && pct(TODAY) !== null) ? TODAY : addDays(TODAY, -1), n = 0;
+    while (pct(k) !== null) { n++; k = addDays(k, -1); }
+    return n;
+  }
+  function renderWeek() {
+    var el = $('week'); el.innerHTML = '';
+    var end = addDays(cur, Math.max(0, Math.min(3, Math.round((parse(TODAY) - parse(cur)) / 864e5))));
+    for (var i = 6; i >= 0; i--) (function (k) {
+      var b = document.createElement('button'); b.type = 'button';
+      var d = parse(k), p = pct(k), future = k > TODAY;
+      b.className = k === cur ? 'sel' : '';
+      b.disabled = future; if (future) b.style.opacity = 0.35;
+      b.innerHTML = d.toLocaleDateString(undefined, { weekday: 'narrow' }) + '<b>' + d.getDate() + '</b><i class="ring" style="--p:' + (p === null ? 0 : Math.round(p * 100)) + '"></i>';
+      b.setAttribute('aria-label', d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }) + (p === null ? '' : ', ' + Math.round(p * 100) + '% done'));
+      b.onclick = function () { pushIdx = null; cur = k; renderDay(); };
+      el.appendChild(b);
+    })(addDays(end, -i));
+  }
+  function renderNag() {
+    var days = Object.keys(S.days).length, last = S.lastBackup || 0;
+    $('backupNag').hidden = !(days >= 3 && Date.now() - last > 7 * 864e5);
+  }
+  $('backupNag').onclick = function () { show('set'); setTimeout(function () { $('bCopy').scrollIntoView({ block: 'center' }); }, 50); };
+  $('dTitleBtn').onclick = function () { if (cur !== TODAY) { pushIdx = null; cur = TODAY; renderDay(); } };
+  /* Swipe left/right to change days */
+  (function () {
+    var x0 = null, y0 = 0;
+    $('v-day').addEventListener('touchstart', function (e) { if (e.target.closest('textarea,input')) return; x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+    $('v-day').addEventListener('touchend', function (e) {
+      if (x0 === null) return;
+      var dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; x0 = null;
+      if (Math.abs(dx) < 70 || Math.abs(dy) > Math.abs(dx) * 0.6) return;
+      if (dx > 0) $('prev').click(); else if (cur < TODAY) $('next').click();
+    }, { passive: true });
+  })();
   function rate(el, labels, val, set) {
     el.innerHTML = '';
     labels.forEach(function (l, i) {
@@ -404,7 +517,7 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
       el.appendChild(b);
     });
   }
-  $('note').oninput = function () { day(cur).note = this.value; save(); };
+  $('note').oninput = function () { day(cur).note = this.value; save(); grow(); $('noteSaved').textContent = 'Saved'; clearTimeout(grow.t); grow.t = setTimeout(function () { $('noteSaved').textContent = ''; }, 1200); };
   $('prev').onclick = function () { pushIdx = null; cur = addDays(cur, -1); renderDay(); };
   $('next').onclick = function () { pushIdx = null; if (cur < TODAY) { cur = addDays(cur, 1); renderDay(); } };
 
@@ -427,10 +540,52 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
       '<div class="stat"><b>' + (moods.length ? avg(moods).toFixed(1) : '–') + '</b><span>Avg mood</span></div>' +
       '<div class="stat"><b>' + logged.length + '</b><span>Days logged</span></div>';
 
+    insight(keys); wow(); rates(keys);
     lineChart(keys);
     bucketChart(keys);
     impact(keys);
     heat();
+  }
+
+  function insight(keys) {
+    var hi = [], lo = [];
+    keys.forEach(function (k) { var p = pct(k), m = peek(k) && peek(k).mood; if (p === null || !m) return; (p >= 0.67 ? hi : lo).push(m); });
+    var el = $('insight');
+    if (hi.length >= 3 && lo.length >= 3) {
+      var d = avg(hi) - avg(lo);
+      el.textContent = d > 0.15 ? 'On days you get through most of your list, your mood runs ' + d.toFixed(1) + ' points higher. The work pays off.'
+        : d < -0.15 ? 'Your mood has been lower on your busiest days. Check your sleep and whether you’re overloading the list.'
+        : 'So far your mood is about the same either way. Keep logging, the pattern needs more days.';
+    } else el.textContent = 'Log habits and mood for a couple of weeks and this will tell you what the data says.';
+  }
+  function wow() {
+    function wk(off) {
+      var ps = [], ms = [];
+      for (var i = 0; i < 7; i++) { var k = addDays(TODAY, -(i + off)); var p = pct(k); if (p !== null) ps.push(p); var m = peek(k) && peek(k).mood; if (m) ms.push(m); }
+      return { p: avg(ps), m: avg(ms), n: ps.length };
+    }
+    var a = wk(0), b = wk(7);
+    function cell(v, prev, fmt, label) {
+      var arrow = '';
+      if (v !== null && prev !== null) { var d = v - prev; arrow = Math.abs(d) < 0.01 ? ' <small>=</small>' : d > 0 ? ' <small style="color:var(--good)">▲</small>' : ' <small style="color:var(--danger)">▼</small>'; }
+      return '<div class="stat"><b>' + (v === null ? '–' : fmt(v)) + arrow + '</b><span>' + label + '</span></div>';
+    }
+    $('wow').innerHTML = cell(a.p, b.p, function (v) { return Math.round(v * 100) + '%'; }, 'Done (last wk ' + (b.p === null ? '–' : Math.round(b.p * 100) + '%') + ')') +
+      cell(a.m, b.m, function (v) { return v.toFixed(1); }, 'Mood (last wk ' + (b.m === null ? '–' : b.m.toFixed(1)) + ')') +
+      cell(a.n, b.n, function (v) { return v + '/7'; }, 'Days logged');
+  }
+  function rates(keys) {
+    var logged = keys.filter(function (k) { return pct(k) !== null; }), el = $('rates');
+    if (!logged.length) { el.innerHTML = '<p class="muted" style="margin:0">Nothing logged in this range yet.</p>'; return; }
+    el.innerHTML = '';
+    active().map(function (h) {
+      return { h: h, r: logged.filter(function (k) { return peek(k).done[h.id]; }).length / logged.length };
+    }).sort(function (a, b) { return b.r - a.r; }).forEach(function (o) {
+      var row = document.createElement('div'); row.className = 'rt';
+      row.innerHTML = '<span class="n"></span><span class="v">' + Math.round(o.r * 100) + '%</span><div class="progress"><i style="width:' + (o.r * 100) + '%;background:' + (o.r >= 0.7 ? 'var(--good)' : o.r >= 0.4 ? 'var(--warn)' : 'var(--danger)') + '"></i></div>';
+      row.querySelector('.n').textContent = o.h.name;
+      el.appendChild(row);
+    });
   }
 
   function lineChart(keys) {
@@ -594,7 +749,8 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
     var hs = active();
     hs.forEach(function (h, i) {
       var r = document.createElement('div'); r.className = 'edit';
-      r.innerHTML = '<input type="text" maxlength="40" aria-label="Habit name"><button type="button" aria-label="Move up">↑</button><button type="button" aria-label="Remove">✕</button>';
+      var bst = bestStreak(h.id);
+      r.innerHTML = '<input type="text" maxlength="40" aria-label="Habit name">' + (bst > 1 ? '<span class="best" title="Best streak">best ' + bst + 'd</span>' : '') + '<button type="button" aria-label="Move up">↑</button><button type="button" aria-label="Remove">✕</button>';
       var inp = r.querySelector('input'); inp.value = h.name;
       if (h.work) inp.placeholder = 'Work habit';
       if (h.work) { var tg = document.createElement('span'); tg.className = 'tag'; tg.textContent = 'Work'; r.insertBefore(tg, r.children[1]); }
@@ -602,9 +758,25 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
       var bs = r.querySelectorAll('button');
       bs[0].disabled = i === 0; bs[0].style.opacity = i === 0 ? 0.3 : 1;
       bs[0].onclick = function () { var a = S.habits.indexOf(h), b = S.habits.indexOf(hs[i - 1]); S.habits[a] = hs[i - 1]; S.habits[b] = h; save(); renderSet(); };
-      bs[1].onclick = function () { if (confirm('Remove "' + h.name + '"? Its history stays in your trends.')) { h.off = true; save(); renderSet(); } };
+      bs[1].onclick = function () { h.off = true; save(); renderSet(); toast('Removed ' + h.name, 'Undo', function () { h.off = false; save(); renderSet(); }); };
       el.appendChild(r);
     });
+    var gone = S.habits.filter(function (h) { return h.off; }), rl = $('removedList');
+    $('removedWrap').hidden = !gone.length; rl.innerHTML = '';
+    gone.forEach(function (h) {
+      var r = document.createElement('div'); r.className = 'edit';
+      r.innerHTML = '<span class="name muted" style="flex:1"></span><button type="button">Restore</button>';
+      r.querySelector('.name').textContent = h.name;
+      r.querySelector('button').onclick = function () { h.off = false; save(); renderSet(); toast('Restored ' + h.name); };
+      rl.appendChild(r);
+    });
+    [].forEach.call($('themeSeg').children, function (c) { c.setAttribute('aria-pressed', c.dataset.t === (S.theme || 'auto')); });
+    $('lastBackup').textContent = S.lastBackup ? 'Last backup: ' + new Date(S.lastBackup).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'No backup yet.';
+  }
+  function bestStreak(id) {
+    var ks = Object.keys(S.days).filter(function (k) { return S.days[k].done[id]; }).sort(), best = 0, run = 0, prev = null;
+    ks.forEach(function (k) { run = prev && addDays(prev, 1) === k ? run + 1 : 1; best = Math.max(best, run); prev = k; });
+    return best;
   }
   function addHabit() {
     var v = $('newHabit').value.trim(); if (!v) return;
@@ -614,18 +786,34 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
   $('addHabit').onclick = addHabit;
   $('newHabit').onkeydown = function (e) { if (e.key === 'Enter') addHabit(); };
 
-  function applyRed() { document.documentElement.classList.toggle('red', !!S.red); $('redBtn').setAttribute('aria-pressed', !!S.red); }
+  function applyRed() {
+    document.documentElement.classList.toggle('red', !!S.red); $('redBtn').setAttribute('aria-pressed', !!S.red);
+    if (S.theme && S.theme !== 'auto') document.documentElement.setAttribute('data-theme', S.theme); else document.documentElement.removeAttribute('data-theme');
+  }
+  $('themeSeg').onclick = function (e) { var b = e.target.closest('button'); if (!b) return; S.theme = b.dataset.t; save(); applyRed(); renderSet(); };
   $('redBtn').onclick = function () { S.red = !S.red; save(); applyRed(); };
 
   $('bCopy').onclick = function () {
+    S.lastBackup = Date.now(); save(); renderSet();
     var text = JSON.stringify(S);
-    try { navigator.clipboard.writeText(text).then(function () { toast('Backup copied'); }, function () { $('bText').value = text; $('bText').select(); toast('Select all and copy'); }); }
+    try { navigator.clipboard.writeText(text).then(function () { toast('Backup copied. Paste it in Notes.'); }, function () { $('bText').value = text; $('bText').select(); toast('Select all and copy'); }); }
     catch (e) { $('bText').value = text; $('bText').select(); }
+  };
+  $('csvCopy').onclick = function () {
+    var hs = S.habits, rows = [['Date'].concat(hs.map(function (h) { return h.name; }), ['Done %', 'Mood', 'Energy', 'Note'])];
+    Object.keys(S.days).sort().forEach(function (k) {
+      var d = S.days[k], p = pct(k);
+      rows.push([k].concat(hs.map(function (h) { return d.done[h.id] ? 1 : 0; }), [p === null ? '' : Math.round(p * 100), d.mood || '', d.energy || '', d.note || '']));
+    });
+    var csv = rows.map(function (r) { return r.map(function (c) { c = String(c); return /[",\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; }).join(','); }).join('\n');
+    try { navigator.clipboard.writeText(csv).then(function () { toast('Spreadsheet copied'); }, function () { $('bText').value = csv; $('bText').select(); }); }
+    catch (e) { $('bText').value = csv; $('bText').select(); }
   };
   $('bRestore').onclick = function () {
     try {
       var d = JSON.parse($('bText').value);
       if (!d || !d.days || !d.habits) throw 0;
+      if (!confirm('Replace everything on this phone with this backup (' + Object.keys(d.days).length + ' days logged)?')) return;
       S = d; migrate(); if (S.hourOffset == null) S.hourOffset = 0; TODAY = nowDay(); cur = TODAY; save(); $('bText').value = ''; $('bMsg').textContent = 'Restored'; applyRed(); renderSet();
     } catch (e) { $('bMsg').textContent = 'That doesn’t look like a backup. Paste the full copied text.'; }
   };
@@ -636,13 +824,15 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
     ['day', 'trends', 'set'].forEach(function (x) { $('v-' + x).hidden = x !== v; });
     tabs.forEach(function (t) { t.setAttribute('aria-selected', t.dataset.v === v); });
     var t = nowDay(); if (t !== TODAY) { if (cur === TODAY) cur = t; TODAY = t; }
+    try { localStorage.setItem(KEY + '-tab', v); } catch (e) {}
     if (v === 'day') renderDay(); else if (v === 'trends') renderTrends(); else renderSet();
     window.scrollTo(0, 0);
   }
   tabs.forEach(function (t) { t.onclick = function () { show(t.dataset.v); }; });
 
   applyRed();
-  show('day');
+  var lastTab = 'day'; try { lastTab = localStorage.getItem(KEY + '-tab') || 'day'; } catch (e) {}
+  show(['day', 'trends', 'set'].indexOf(lastTab) >= 0 ? lastTab : 'day');
   if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) navigator.serviceWorker.register('sw.js').catch(function () {});
 })();
 </script>
