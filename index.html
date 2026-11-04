@@ -258,6 +258,15 @@ nav.tabs button:active svg { transform: scale(.88); }
 .dbars > span > i.dn { top: 50%; background: var(--danger); }
 .dbars > span > i.na { top: calc(50% - 1px); height: 2px; background: var(--line); }
 .debt .muted { margin: 0; font-size: 0.82rem; }
+.meter.cog { background: linear-gradient(90deg, var(--danger) 0%, var(--danger) 45%, var(--warn) 70%, var(--good) 85%, var(--good) 100%); }
+.dstats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.dstats > div { background: var(--surface); border-radius: 10px; padding: 8px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dstats b { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 1.15rem; }
+.dstats small { font-size: 0.68rem; color: var(--muted); line-height: 1.2; }
+.dmore summary { font-size: 0.82rem; font-weight: 600; color: var(--accent); cursor: pointer; padding: 2px 0; }
+.dmore p { font-size: 0.8rem; color: var(--muted); margin: 8px 0 0; line-height: 1.45; }
+.dmore p b { color: var(--fg); }
+.linkish { background: none; border: 0; color: var(--accent); font: inherit; font-size: 0.82rem; font-weight: 600; padding: 8px 0 0; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .meter > i { transition: none; } }
 .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 @media (max-width: 380px) { .grid3 { grid-template-columns: 1fr 1fr; } }
@@ -612,20 +621,33 @@ svg.cy .ah { fill: var(--cat, var(--accent)); }
       <h2 id="h-sleep"><span class="sw" style="background:var(--sleep)"></span>Sleep<span class="right" id="sleepGoalTxt"></span></h2>
       <div class="big" id="sleepBig">0 <small>hrs</small></div>
       <div class="bar"><i id="sleepBar" style="background:var(--sleep);width:0"></i></div>
-      <p class="muted" style="margin:0">Log each block of sleep. Naps between watches count.</p>
+      <p class="muted" style="margin:0">Log each block of actual sleep, not rack time. Naps between watches count.</p>
       <div class="row">
         <input type="number" id="sHours" inputmode="decimal" min="0" max="24" step="0.25" placeholder="Hours (e.g. 5.5)" style="flex:1" aria-label="Hours slept">
         <button type="button" class="btn-primary" id="sAdd">Add</button>
       </div>
       <div class="list" id="sleepList"></div>
       <div class="debt" id="debtBox" aria-live="polite">
-        <div class="dh"><b>Sleep debt</b><span class="lvl" id="debtLvl"></span></div>
-        <div class="big" id="debtBig">0 <small>hrs</small></div>
-        <div class="meter" role="meter" aria-label="Sleep debt" id="debtMeter" aria-valuemin="0" aria-valuemax="21"><i id="debtKnob" style="left:0"></i></div>
-        <div class="meter-ticks"><span style="left:0">0</span><span style="left:33.33%">7</span><span style="left:66.67%">14</span><span style="left:100%">21+ hrs</span></div>
-        <div class="cap"><span>Last 14 days vs goal</span><span>today →</span></div>
+        <div class="dh"><b>Cognitive estimate</b><span class="lvl" id="debtLvl"></span></div>
+        <div class="big" id="cogBig">100 <small>/ 100</small></div>
+        <div class="meter cog" role="meter" aria-label="Cognitive estimate" id="debtMeter" aria-valuemin="0" aria-valuemax="100"><i id="debtKnob" style="left:100%"></i></div>
+        <div class="meter-ticks"><span style="left:0">0</span><span style="left:45%">45</span><span style="left:70%">70</span><span style="left:85%">85</span><span style="left:100%">100</span></div>
+        <div class="dstats">
+          <div><b id="debtBig">0</b><small>hrs sleep debt</small></div>
+          <div><b id="debtEq">0</b><small>all-nighters' worth</small></div>
+          <div><b id="debtLog">0</b><small>of 14 nights logged</small></div>
+        </div>
+        <div class="cap"><span>Last 14 days vs 8.2 hr need</span><span>today →</span></div>
         <div class="dbars" id="debtBars" aria-hidden="true"></div>
         <p class="muted" id="debtTxt"></p>
+        <details class="dmore"><summary>How this is calculated</summary>
+          <p>Need is set at <b>8.2 hrs</b> a day (or your sleep goal if it's higher). In the biggest lab study of chronic sleep loss, mistakes piled up once people were awake more than 15.84 hrs a day, which means needing about 8.16 hrs of sleep (Van Dongen et al., 2003).</p>
+          <p><b>Sleep debt</b> is every hour short of that over the last 14 days. That study found the damage grows almost in a straight line with those lost hours, and that people mostly stop feeling it after a few days.</p>
+          <p><b>Paying it back is slow.</b> Extra sleep counts at half value here, and no more than 2 hrs of credit per night. One long night didn't fully undo 5 short ones (Banks et al., 2010), 3 normal nights didn't fix a week of restriction (Belenky et al., 2003), and one hour of debt took about 4 days of extra sleep to clear (Kitamura et al., 2016). The half-value rule is this app's simplification of those results, not a number from any one study.</p>
+          <p><b>The score</b>: 14 nights of 6 hrs in that study hurt attention about as much as one full night without sleep, and 14 nights of 4 hrs about as much as two. That works out to about 30 hrs of debt per all-nighter. The score falls from 100 by a third for each all-nighter's worth. Being awake 24 hrs straight has been compared to a 0.10% blood alcohol level (Dawson &amp; Reid, 1997).</p>
+          <p>Log actual sleep, not rack time. In one study, 7 hrs in bed got people about 6.3 hrs of sleep (Belenky et al., 2003). This is an estimate for an average person, not a medical test.</p>
+          <button type="button" class="linkish" id="debtRead">Read: The Debt You Can't Feel →</button>
+        </details>
       </div>
     </section>
 
@@ -922,48 +944,79 @@ svg.cy .ah { fill: var(--cat, var(--accent)); }
   function toast(t, a, f) { if (window.HB) HB.toast(t, a, f); }
   function pct(v, g) { return g > 0 ? Math.min(100, (v / g) * 100) : 0; }
 
-  /* ---------- Sleep debt ----------
-     Rolling 14 days ending on the selected day. Need = that day's sleep goal.
-     Short nights add to the debt; long nights pay it back (never below 0).
-     Days with no sleep logged are skipped, so a forgotten log doesn't count as 0 hrs. */
-  var DEBT_DAYS = 14, DEBT_MAX = 21;
-  function sleepDebt(end) {
-    var debt = 0, days = [], logged = 0;
+  /* ---------- Sleep debt + cognitive estimate ----------
+     Based on Van Dongen et al. 2003 (Sleep 26:117): lapses rise near-linearly with cumulative
+     wake beyond 15.84 h/day (= 8.16 h sleep need); 14 d of 6 h TIB ≈ 1 night total deprivation,
+     14 d of 4 h ≈ 2 nights → ~30 h of debt per all-nighter equivalent.
+     Recovery is slower than loss (Belenky 2003, Banks 2010, Kitamura 2016): surplus sleep repays
+     at 50%, max 2 h credit per night (app simplification). Unlogged days are skipped. */
+  var DEBT_DAYS = 14, NEED = 8.16, REPAY = 0.5, REPAY_CAP = 2, PER_ALLNIGHTER = 30;
+  function needFor(d) { return Math.max(NEED, goalFor(d).sleep || 0); }
+  function debtOf(series) {
+    var debt = 0;
+    series.forEach(function (x) {
+      if (x.h == null) return;
+      var diff = x.h - x.need;
+      debt = diff < 0 ? debt - diff : Math.max(0, debt - Math.min(diff, REPAY_CAP) * REPAY);
+    });
+    return debt;
+  }
+  function seriesTo(end) {
+    var out = [];
     for (var i = DEBT_DAYS - 1; i >= 0; i--) {
-      var d = addDays(end, -i), dd = S.days[d], need = goalFor(d).sleep || 0;
-      var has = dd && dd.sleep && dd.sleep.length;
-      if (!has || !need) { days.push({ d: d, na: true }); continue; }
-      var h = sum(dd.sleep, 'h'), diff = h - need;
-      debt = Math.max(0, debt - diff); logged++;
-      days.push({ d: d, diff: diff });
+      var d = addDays(end, -i), dd = S.days[d], has = dd && dd.sleep && dd.sleep.length;
+      out.push({ d: d, need: needFor(d), h: has ? sum(dd.sleep, 'h') : null });
     }
-    return { debt: debt, days: days, logged: logged };
+    return out;
+  }
+  function sleepDebt(end) {
+    var ser = seriesTo(end), debt = debtOf(ser), logged = 0;
+    var days = ser.map(function (x) { if (x.h == null) return { d: x.d, na: true }; logged++; return { d: x.d, h: x.h, diff: x.h - x.need }; });
+    var eq = debt / PER_ALLNIGHTER;
+    return { debt: debt, days: days, logged: logged, eq: eq, ser: ser, score: Math.max(0, Math.round(100 * (1 - eq / 3))) };
+  }
+  // Nights of (need + extra) until the rolling estimate drops under 1 hr of debt.
+  function nightsToClear(ser, extra) {
+    var s2 = ser.slice(), need = ser[ser.length - 1].need;
+    for (var n = 1; n <= 60; n++) {
+      s2.push({ need: need, h: need + extra }); s2 = s2.slice(-DEBT_DAYS);
+      if (debtOf(s2) < 1) return n;
+    }
+    return 60;
   }
   function renderDebt() {
-    var r = sleepDebt(sel), d = r1(r.debt), need = goalFor(sel).sleep || 0;
-    $('debtBig').innerHTML = ''; $('debtBig').append(d + ' '); $('debtBig').appendChild(el('small', '', 'hrs owed'));
-    $('debtKnob').style.left = Math.min(100, (r.debt / DEBT_MAX) * 100) + '%';
-    $('debtMeter').setAttribute('aria-valuenow', d);
-    var lv = r.debt < 3 ? ['Rested', 'var(--good)'] : r.debt < 7 ? ['Mild', 'var(--warn)'] : r.debt < 14 ? ['Moderate', 'var(--danger)'] : ['Heavy', 'var(--danger)'];
-    var L = $('debtLvl'); L.textContent = r.logged < 3 ? 'Need data' : lv[0]; L.style.setProperty('--lc', r.logged < 3 ? 'var(--muted)' : lv[1]);
+    var r = sleepDebt(sel), need = needFor(sel), few = r.logged < 3;
+    var sc = few ? null : r.score;
+    $('cogBig').innerHTML = ''; $('cogBig').append((sc == null ? '–' : sc) + ' '); $('cogBig').appendChild(el('small', '', '/ 100'));
+    $('debtKnob').style.left = (sc == null ? 100 : sc) + '%';
+    $('debtMeter').setAttribute('aria-valuenow', sc == null ? 100 : sc);
+    $('debtBig').textContent = r1(r.debt);
+    $('debtEq').textContent = r.eq < 0.1 ? '0' : (Math.round(r.eq * 10) / 10).toString();
+    $('debtLog').textContent = r.logged;
+    var lv = sc == null ? ['Need data', 'var(--muted)'] : sc >= 85 ? ['Sharp', 'var(--good)'] : sc >= 70 ? ['Dulled', 'var(--warn)'] : sc >= 45 ? ['Impaired', 'var(--danger)'] : ['Severely impaired', 'var(--danger)'];
+    var L = $('debtLvl'); L.textContent = lv[0]; L.style.setProperty('--lc', lv[1]);
     var bars = $('debtBars'); bars.innerHTML = '';
     r.days.forEach(function (x) {
-      var sp = el('span'); sp.title = x.d + (x.na ? ': not logged' : ': ' + (x.diff >= 0 ? '+' : '') + r1(x.diff) + ' hrs vs goal');
+      var sp = el('span'); sp.title = x.d + (x.na ? ': not logged' : ': ' + r1(x.h) + ' hrs (' + (x.diff >= 0 ? '+' : '') + r1(x.diff) + ' vs need)');
       var i = el('i', x.na ? 'na' : x.diff >= 0 ? 'up' : 'dn');
       if (!x.na) i.style.height = Math.max(2, Math.min(50, Math.abs(x.diff) / 4 * 50)) + '%';
       sp.appendChild(i); bars.appendChild(sp);
     });
     var t;
-    if (!need) t = 'Set a sleep goal in Settings → Goals to track sleep debt.';
-    else if (r.logged < 3) t = 'Log at least 3 nights to get a real estimate. ' + r.logged + ' of the last ' + DEBT_DAYS + ' days logged so far.';
-    else if (r.debt < 0.5) t = 'No debt. You\'re at or above your ' + need + ' hr goal over the last ' + DEBT_DAYS + ' days.';
+    if (few) t = 'Log at least 3 nights to get an estimate. ' + r.logged + ' of the last ' + DEBT_DAYS + ' days logged so far.';
+    else if (r.debt < 1) t = 'Little or no debt against an ' + r1(need) + ' hr need. Your brain is running at full speed.';
     else {
-      var nights = Math.ceil(r.debt);
-      t = 'You\'re ' + d + ' hrs short of your ' + need + ' hr goal over the last ' + DEBT_DAYS + ' days (' + r.logged + ' logged). ' +
-        'An extra hour a day pays it off in about ' + nights + ' day' + (nights === 1 ? '' : 's') + '. Rack time between watches counts.';
+      var n0 = nightsToClear(r.ser, 0), n2 = nightsToClear(r.ser, 2), eqr = Math.round(r.eq * 10) / 10;
+      t = 'You\'re ' + r1(r.debt) + ' hrs behind. ' +
+        (r.eq >= 1.5 ? 'That\'s about as impaired as ' + eqr + ' nights with no sleep. ' :
+         r.eq >= 0.9 ? 'That\'s about as impaired as a full night with no sleep, and 24 hrs awake has been compared to a 0.10% blood alcohol level. ' :
+         r.eq >= 0.4 ? 'That\'s already a measurable hit to attention and reaction time. ' : '') +
+        'You probably feel fine. That\'s the trap: in the study, people stopped noticing while their performance kept falling. ' +
+        'To clear it: about ' + n2 + ' night' + (n2 === 1 ? '' : 's') + ' at ' + r1(need + 2) + ' hrs, or ' + n0 + ' at ' + r1(need) + ' hrs.';
     }
     $('debtTxt').textContent = t;
   }
+  $('debtRead').onclick = function () { if (window.RD) { APP.go('read'); RD.open('sleep-debt-performance'); } };
 
   /* ---------- Date bar ---------- */
   function renderDateBar() {
@@ -2149,12 +2202,15 @@ svg.cy .ah { fill: var(--cat, var(--accent)); }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(R)); } catch (e) {} }
 
   var A = null, loading = false, filter = 'All', query = '', openId = null;
+  var waiting = [];
   function load(cb) {
     if (A) return cb();
+    waiting.push(cb);
     if (loading) return; loading = true;
     fetch('articles.json?v=' + Date.now()).then(function (r) { return r.json(); }).then(function (d) {
-      A = d.filter(function (a) { return a && a.id && a.title && a.blocks; }); loading = false; cb();
-    }).catch(function () { loading = false; $('alist').innerHTML = '<div class="empty-read">Couldn’t load the library. Open the app once with signal so it can save the articles.</div>'; });
+      A = d.filter(function (a) { return a && a.id && a.title && a.blocks; }); loading = false;
+      var w = waiting; waiting = []; w.forEach(function (f) { f(); });
+    }).catch(function () { loading = false; waiting = []; $('alist').innerHTML = '<div class="empty-read">Couldn’t load the library. Open the app once with signal so it can save the articles.</div>'; });
   }
 
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
