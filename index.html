@@ -219,7 +219,7 @@ nav.tabs button:active svg { transform: scale(.88); }
 
 .toast { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 90; display: flex; align-items: center; gap: 12px;
   background: color-mix(in srgb, var(--fg) 92%, transparent); color: var(--bg); padding: 10px 16px; border-radius: 99px; font-size: 0.88rem; font-weight: 500;
-  max-width: calc(100vw - 32px); box-shadow: 0 8px 24px rgba(0,0,0,.25);
+  max-width: calc(100vw - 32px); white-space: nowrap; box-shadow: 0 8px 24px rgba(0,0,0,.25);
   transform: translate(-50%, 16px); opacity: 0; transition: transform 160ms var(--ease-in), opacity 160ms var(--ease-in); }
 .toast.in { transform: translate(-50%, 0); opacity: 1; transition: transform 260ms var(--spring), opacity 200ms var(--ease-out); }
 .toast button { min-height: 30px; padding: 0 6px; background: none; color: var(--accent); font-weight: 700; }
@@ -334,7 +334,16 @@ svg.chart .pace { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-da
 .feature .me { font-size: 0.78rem; color: var(--muted); font-weight: 600; }
 .alist { display: flex; flex-direction: column; background: var(--surface); border-radius: var(--r-card); overflow: hidden; }
 .acard { display: flex; gap: 12px; align-items: flex-start; text-align: left; background: none; border-radius: 0; padding: 14px 16px; min-height: 0; width: 100%; }
-.acard + .acard { border-top: 0.5px solid var(--line); }
+.arow { display: flex; align-items: center; }
+.arow + .arow { border-top: 0.5px solid var(--line); }
+.arow .acard { flex: 1; min-width: 0; padding-right: 6px; }
+.rtog { flex: none; width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; margin-right: 8px; background: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: transparent; }
+.rtog::before { content: ""; position: absolute; width: 24px; height: 24px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--muted) 60%, transparent); transition: background-color 150ms, border-color 150ms; }
+.rtog { position: relative; }
+.rtog svg { position: relative; z-index: 1; }
+.rtog.on { color: #fff; }
+.rtog.on::before { background: var(--good); border-color: var(--good); }
+.rtog.on svg { animation: pop 300ms var(--spring); }
 .acard:active { transform: none; background: var(--sunk); }
 .acard .dot { width: 10px; height: 10px; border-radius: 3px; background: var(--cat, var(--accent)); flex: none; margin-top: 6px; }
 .acard .body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
@@ -2125,13 +2134,26 @@ svg.cy .ah { fill: var(--cat, var(--accent)); }
     if (!list.length) { el.innerHTML = '<div class="empty-read">' + (filter === 'Saved' ? 'Nothing saved yet. Tap the bookmark in any article.' : 'No articles match.') + '</div>'; return; }
     var frag = document.createDocumentFragment();
     list.forEach(function (a) {
+      var row = document.createElement('div'); row.className = 'arow';
+      var tg = document.createElement('button'); tg.type = 'button'; tg.className = 'rtog' + (R.read[a.id] ? ' on' : '');
+      tg.setAttribute('aria-label', R.read[a.id] ? 'Read. Tap to mark unread' : 'Mark as read');
+      tg.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
+      tg.onclick = function (e) {
+        e.stopPropagation();
+        var was = !!R.read[a.id];
+        if (was) delete R.read[a.id]; else { R.read[a.id] = Date.now(); delete R.pos[a.id]; }
+        save(); if (window.HB) HB.haptic();
+        renderLib();
+        if (window.HB) HB.toast(was ? 'Marked as unread' : 'Marked as read', 'Undo', function () { if (was) R.read[a.id] = Date.now(); else delete R.read[a.id]; save(); renderLib(); });
+      };
       var b = document.createElement('button'); b.type = 'button'; b.className = 'acard' + (R.read[a.id] ? ' done' : '');
       b.style.setProperty('--cat', catColor(a.category));
       var p = R.pos[a.id];
       b.innerHTML = '<span class="dot"></span><span class="body"><span class="k">' + esc(a.category) + '</span><span class="ti">' + esc(a.title) + '</span><span class="de">' + esc(a.dek || '') + '</span>' +
-        '<span class="me">' + minutes(a) + ' min' + (R.read[a.id] ? ' · <span class="ok">✓ Read</span>' : (p > 0.05 ? ' · <span class="prog"><i style="width:' + Math.round(p * 100) + '%"></i></span>' : '')) + (R.saved[a.id] ? ' · <span class="bm">Saved</span>' : '') + '</span></span>';
+        '<span class="me">' + minutes(a) + ' min' + (R.read[a.id] ? '' : (p > 0.05 ? ' · <span class="prog"><i style="width:' + Math.round(p * 100) + '%"></i></span>' : '')) + (R.saved[a.id] ? ' · <span class="bm">Saved</span>' : '') + '</span></span>';
       b.onclick = function () { openArticle(a.id); };
-      frag.appendChild(b);
+      row.appendChild(b); row.appendChild(tg);
+      frag.appendChild(row);
     });
     el.appendChild(frag);
   }
