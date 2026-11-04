@@ -238,6 +238,27 @@ nav.tabs button:active svg { transform: scale(.88); }
 .big small { font-size: 0.95rem; color: var(--muted); font-weight: 500; letter-spacing: 0; }
 .bar { height: 8px; background: var(--sunk); border-radius: 99px; overflow: hidden; }
 .bar > i { display: block; height: 100%; border-radius: 99px; transition: width 500ms var(--ease-out); }
+/* Sleep debt meter */
+.debt { margin-top: 4px; padding: 12px; background: var(--sunk); border-radius: 14px; display: flex; flex-direction: column; gap: 8px; }
+.debt .dh { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.debt .dh b { font-size: 0.95rem; }
+.debt .lvl { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 8px; border-radius: 99px; color: var(--lc); background: color-mix(in srgb, var(--lc) 16%, transparent); }
+.debt .big { font-size: 1.8rem; }
+.meter { position: relative; height: 10px; border-radius: 99px; background: linear-gradient(90deg, var(--good) 0%, var(--good) 14%, var(--warn) 33%, var(--danger) 67%, var(--danger) 100%); opacity: .9; }
+.meter > i { position: absolute; top: 50%; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%; background: var(--surface); border: 3px solid var(--fg); transform: translateY(-50%); transition: left 600ms var(--ease-out); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+.meter-ticks { position: relative; height: 14px; font-size: 0.68rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.meter-ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.meter-ticks span:first-child { transform: none; } .meter-ticks span:last-child { transform: translateX(-100%); }
+.debt .cap { font-size: 0.7rem; color: var(--muted); display: flex; justify-content: space-between; margin-bottom: -4px; }
+.dbars { display: flex; align-items: center; gap: 3px; height: 54px; position: relative; }
+.dbars::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px dashed var(--line); }
+.dbars > span { flex: 1; height: 100%; position: relative; }
+.dbars > span > i { position: absolute; left: 0; right: 0; border-radius: 3px; }
+.dbars > span > i.up { bottom: 50%; background: var(--good); }
+.dbars > span > i.dn { top: 50%; background: var(--danger); }
+.dbars > span > i.na { top: calc(50% - 1px); height: 2px; background: var(--line); }
+.debt .muted { margin: 0; font-size: 0.82rem; }
+@media (prefers-reduced-motion: reduce) { .meter > i { transition: none; } }
 .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 @media (max-width: 380px) { .grid3 { grid-template-columns: 1fr 1fr; } }
 .list { display: flex; flex-direction: column; gap: 6px; }
@@ -597,6 +618,15 @@ svg.cy .ah { fill: var(--cat, var(--accent)); }
         <button type="button" class="btn-primary" id="sAdd">Add</button>
       </div>
       <div class="list" id="sleepList"></div>
+      <div class="debt" id="debtBox" aria-live="polite">
+        <div class="dh"><b>Sleep debt</b><span class="lvl" id="debtLvl"></span></div>
+        <div class="big" id="debtBig">0 <small>hrs</small></div>
+        <div class="meter" role="meter" aria-label="Sleep debt" id="debtMeter" aria-valuemin="0" aria-valuemax="21"><i id="debtKnob" style="left:0"></i></div>
+        <div class="meter-ticks"><span style="left:0">0</span><span style="left:33.33%">7</span><span style="left:66.67%">14</span><span style="left:100%">21+ hrs</span></div>
+        <div class="cap"><span>Last 14 days vs goal</span><span>today →</span></div>
+        <div class="dbars" id="debtBars" aria-hidden="true"></div>
+        <p class="muted" id="debtTxt"></p>
+      </div>
     </section>
 
     <section class="card" aria-labelledby="h-photos">
@@ -892,6 +922,49 @@ svg.cy .ah { fill: var(--cat, var(--accent)); }
   function toast(t, a, f) { if (window.HB) HB.toast(t, a, f); }
   function pct(v, g) { return g > 0 ? Math.min(100, (v / g) * 100) : 0; }
 
+  /* ---------- Sleep debt ----------
+     Rolling 14 days ending on the selected day. Need = that day's sleep goal.
+     Short nights add to the debt; long nights pay it back (never below 0).
+     Days with no sleep logged are skipped, so a forgotten log doesn't count as 0 hrs. */
+  var DEBT_DAYS = 14, DEBT_MAX = 21;
+  function sleepDebt(end) {
+    var debt = 0, days = [], logged = 0;
+    for (var i = DEBT_DAYS - 1; i >= 0; i--) {
+      var d = addDays(end, -i), dd = S.days[d], need = goalFor(d).sleep || 0;
+      var has = dd && dd.sleep && dd.sleep.length;
+      if (!has || !need) { days.push({ d: d, na: true }); continue; }
+      var h = sum(dd.sleep, 'h'), diff = h - need;
+      debt = Math.max(0, debt - diff); logged++;
+      days.push({ d: d, diff: diff });
+    }
+    return { debt: debt, days: days, logged: logged };
+  }
+  function renderDebt() {
+    var r = sleepDebt(sel), d = r1(r.debt), need = goalFor(sel).sleep || 0;
+    $('debtBig').innerHTML = ''; $('debtBig').append(d + ' '); $('debtBig').appendChild(el('small', '', 'hrs owed'));
+    $('debtKnob').style.left = Math.min(100, (r.debt / DEBT_MAX) * 100) + '%';
+    $('debtMeter').setAttribute('aria-valuenow', d);
+    var lv = r.debt < 3 ? ['Rested', 'var(--good)'] : r.debt < 7 ? ['Mild', 'var(--warn)'] : r.debt < 14 ? ['Moderate', 'var(--danger)'] : ['Heavy', 'var(--danger)'];
+    var L = $('debtLvl'); L.textContent = r.logged < 3 ? 'Need data' : lv[0]; L.style.setProperty('--lc', r.logged < 3 ? 'var(--muted)' : lv[1]);
+    var bars = $('debtBars'); bars.innerHTML = '';
+    r.days.forEach(function (x) {
+      var sp = el('span'); sp.title = x.d + (x.na ? ': not logged' : ': ' + (x.diff >= 0 ? '+' : '') + r1(x.diff) + ' hrs vs goal');
+      var i = el('i', x.na ? 'na' : x.diff >= 0 ? 'up' : 'dn');
+      if (!x.na) i.style.height = Math.max(2, Math.min(50, Math.abs(x.diff) / 4 * 50)) + '%';
+      sp.appendChild(i); bars.appendChild(sp);
+    });
+    var t;
+    if (!need) t = 'Set a sleep goal in Settings → Goals to track sleep debt.';
+    else if (r.logged < 3) t = 'Log at least 3 nights to get a real estimate. ' + r.logged + ' of the last ' + DEBT_DAYS + ' days logged so far.';
+    else if (r.debt < 0.5) t = 'No debt. You\'re at or above your ' + need + ' hr goal over the last ' + DEBT_DAYS + ' days.';
+    else {
+      var nights = Math.ceil(r.debt);
+      t = 'You\'re ' + d + ' hrs short of your ' + need + ' hr goal over the last ' + DEBT_DAYS + ' days (' + r.logged + ' logged). ' +
+        'An extra hour a day pays it off in about ' + nights + ' day' + (nights === 1 ? '' : 's') + '. Rack time between watches counts.';
+    }
+    $('debtTxt').textContent = t;
+  }
+
   /* ---------- Date bar ---------- */
   function renderDateBar() {
     var d = parse(sel), diff = Math.round((parse(TODAY) - d) / 864e5);
@@ -958,6 +1031,7 @@ svg.cy .ah { fill: var(--cat, var(--accent)); }
     $('sleepBar').style.width = pct(s, g.sleep) + '%';
     $('sleepGoalTxt').textContent = s >= g.sleep ? 'Goal hit' : r1(g.sleep - s) + ' hrs to go';
     listInto('sleepList', dd.sleep, function (x, i) { return ['Sleep block ' + (i + 1), '', r1(x.h) + ' hrs']; }, function (i) { day(sel).sleep.splice(i, 1); });
+    renderDebt();
 
     // note + mood
     if (document.activeElement !== $('note')) $('note').value = dd.note || '';
