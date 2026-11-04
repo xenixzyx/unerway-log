@@ -360,7 +360,9 @@ svg.chart .pace { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-da
 .rbar .ttl { flex: 1; min-width: 0; font-size: 0.88rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transition: opacity 200ms; text-align: center; }
 .rbar.scrolled .ttl { opacity: 1; }
 .rbar button { min-height: 38px; min-width: 38px; padding: 0 10px; border-radius: 99px; background: var(--surface); color: var(--accent); font-weight: 600; display: flex; align-items: center; gap: 4px; }
-.rbar button[aria-pressed="true"] { color: var(--warn); }
+#rSave[aria-pressed="true"] { color: var(--warn); }
+#rRead { font-size: 0.82rem; padding: 0 12px; }
+#rRead[aria-pressed="true"] { color: var(--good); }
 .rprog { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--cat, var(--accent)); width: 0; }
 .article { max-width: 640px; margin: 0 auto; padding: 6px max(20px, env(safe-area-inset-left, 0px)) calc(60px + env(safe-area-inset-bottom, 0px)); }
 .article .k { font-size: 0.76rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--cat, var(--accent)); }
@@ -812,6 +814,7 @@ svg.cy .ah { fill: var(--cat, var(--accent)); }
   <div class="rbar" id="rBar">
     <button type="button" id="rBack" aria-label="Back to library"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>Library</button>
     <div class="ttl" id="rTitle"></div>
+    <button type="button" id="rRead" aria-pressed="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span id="rReadTxt">Mark read</span></button>
     <button type="button" id="rSave" aria-label="Save for later" aria-pressed="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M6 3h12v18l-6-4.5L6 21z" fill-opacity=".18"/></svg></button>
     <i class="rprog" id="rProg"></i>
   </div>
@@ -2227,7 +2230,14 @@ svg.cy .ah { fill: var(--cat, var(--accent)); }
   }
 
   /* ---------- Reader ---------- */
-  var io = null, saveT = null;
+  var io = null, saveT = null, openedAt = 0, activeMs = 0, lastTick = 0, skipThis = false;
+  /* Count only time the article is actually on screen (pauses when the app is in the background). */
+  setInterval(function () { var now = Date.now(); if (openId && !document.hidden) activeMs += Math.min(now - lastTick, 5000); lastTick = now; }, 1000);
+  function syncReadBtn() {
+    var on = !!(openId && R.read[openId]);
+    $('rRead').setAttribute('aria-pressed', on); $('rReadTxt').textContent = on ? 'Read' : 'Mark read';
+    $('rRead').setAttribute('aria-label', on ? 'Marked as read. Tap to mark unread' : 'Mark as read');
+  }
   function nextFor(a) {
     var same = A.filter(function (x) { return x.category === a.category && x.id !== a.id && !R.read[x.id]; });
     var any = A.filter(function (x) { return x.id !== a.id && !R.read[x.id]; });
@@ -2252,6 +2262,7 @@ svg.cy .ah { fill: var(--cat, var(--accent)); }
     if (nx) $('nextBtn').onclick = function () { openArticle(nx.id); };
     $('rTitle').textContent = a.title;
     $('rSave').setAttribute('aria-pressed', !!R.saved[id]);
+    openedAt = Date.now(); activeMs = 0; lastTick = Date.now(); skipThis = false; syncReadBtn();
     rd.classList.remove('closing'); rd.classList.add('open'); document.body.style.overflow = 'hidden';
     // resume where you left off
     var p = R.read[id] ? 0 : (R.pos[id] || 0);
@@ -2276,15 +2287,23 @@ svg.cy .ah { fill: var(--cat, var(--accent)); }
     if (!R.read[openId]) {
       R.pos[openId] = p;
       var src = $('article').querySelector('.tk, .src');
-      if (src && src.getBoundingClientRect().top < rd.clientHeight * 0.9) {
-        R.read[openId] = Date.now(); delete R.pos[openId];
-        if (window.HB) HB.toast('Marked as read'); if (window.HB) HB.haptic();
+      var a = A.filter(function (x) { return x.id === openId; })[0];
+      var need = Math.max(60, (a ? minutes(a) : 10) * 60 * 0.35) * 1000; // at least about a third of the reading time
+      if (src && src.getBoundingClientRect().top < rd.clientHeight * 0.9 && activeMs >= need && !skipThis) {
+        R.read[openId] = Date.now(); delete R.pos[openId]; syncReadBtn();
+        if (window.HB) { HB.toast('Marked as read', 'Undo', function () { delete R.read[a.id]; if (openId === a.id) skipThis = true; save(); syncReadBtn(); }); HB.haptic(); }
       }
       clearTimeout(saveT); saveT = setTimeout(save, 400);
     }
   }
   $('reader').addEventListener('scroll', onScroll, { passive: true });
   $('rBack').onclick = closeReader;
+  $('rRead').onclick = function () {
+    if (!openId) return;
+    if (R.read[openId]) { delete R.read[openId]; skipThis = true; if (window.HB) HB.toast('Marked as unread'); }
+    else { R.read[openId] = Date.now(); delete R.pos[openId]; if (window.HB) HB.toast('Marked as read'); }
+    if (window.HB) HB.haptic(); save(); syncReadBtn();
+  };
   $('rSave').onclick = function () {
     if (!openId) return;
     if (R.saved[openId]) delete R.saved[openId]; else R.saved[openId] = Date.now();
