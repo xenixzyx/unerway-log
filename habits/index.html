@@ -46,6 +46,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
 .btn-primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
 input[type=text] { background: var(--sunk); border: 1px solid var(--line); border-radius: 10px; min-height: 44px; padding: 0 10px; min-width: 0; width: 100%; }
 textarea { background: var(--sunk); border: 1px solid var(--line); border-radius: 10px; width: 100%; padding: 10px; min-height: 80px; resize: vertical; line-height: 1.45; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .muted { color: var(--muted); font-size: 0.85rem; }
 
@@ -210,6 +211,21 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
       <p class="muted" style="margin:0">Removing a habit hides it but keeps its history in your trends.</p>
     </section>
     <section class="card">
+      <h2>Ship time <span class="right" id="shipOffTxt"></span></h2>
+      <div class="stats" style="grid-template-columns:1fr 1fr">
+        <div class="stat"><b id="shipClock" style="font-size:1rem">–</b><span>App time (sets “today”)</span></div>
+        <div class="stat"><b id="phoneClock" style="font-size:1rem">–</b><span>Phone time</span></div>
+      </div>
+      <p class="muted" style="margin:0">After a time zone change, adjust until App time matches the ship's clock.</p>
+      <div class="grid2">
+        <button type="button" id="offHm">− 1 hour</button>
+        <button type="button" id="offHp">+ 1 hour</button>
+        <button type="button" id="offDm">− 1 day</button>
+        <button type="button" id="offDp">+ 1 day</button>
+      </div>
+      <button type="button" id="offReset">Sync to phone time</button>
+    </section>
+    <section class="card">
       <h2>Display</h2>
       <div class="row"><button type="button" id="redBtn" aria-pressed="false">Red light mode</button></div>
     </section>
@@ -259,7 +275,10 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
   function key(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
   function parse(k) { var p = k.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
   function addDays(k, n) { var d = parse(k); d.setDate(d.getDate() + n); return key(d); }
-  var TODAY = key(new Date());
+  if (S.hourOffset == null) S.hourOffset = 0;
+  function shipNow() { return new Date(Date.now() + S.hourOffset * 3600000); }
+  function nowDay() { return key(shipNow()); }
+  var TODAY = nowDay();
   var cur = TODAY;
   function day(k) { return S.days[k] || (S.days[k] = { done: {}, mood: 0, energy: 0, note: '' }); }
   function peek(k) { return S.days[k]; }
@@ -305,7 +324,7 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
   function renderDay() {
     var d = parse(cur);
     var diff = Math.round((parse(TODAY) - d) / 864e5);
-    $('dSub').textContent = diff === 0 ? 'Today' : diff === 1 ? 'Yesterday' : d.toLocaleDateString(undefined, { weekday: 'long' });
+    $('dSub').textContent = (S.hourOffset ? 'Ship time ' + fmtOff(S.hourOffset) + ' · ' : '') + (diff === 0 ? 'Today' : diff === 1 ? 'Yesterday' : d.toLocaleDateString(undefined, { weekday: 'long' }));
     $('dTitle').textContent = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     $('next').disabled = cur >= TODAY;
     $('next').style.opacity = cur >= TODAY ? 0.3 : 1;
@@ -516,7 +535,39 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
   };
 
   /* ---------- Habits tab ---------- */
+  /* ---------- Ship time ---------- */
+  function fmtOff(h) {
+    var sign = h > 0 ? '+' : '−', a = Math.abs(h), d = Math.floor(a / 24), r = a % 24;
+    return sign + [d ? d + 'd' : '', r || !d ? r + 'h' : ''].filter(Boolean).join(' ');
+  }
+  function clockTxt(dt) {
+    return dt.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) + ' ' +
+      String(dt.getHours()).padStart(2, '0') + String(dt.getMinutes()).padStart(2, '0');
+  }
+  function renderShipClock() {
+    $('shipClock').textContent = clockTxt(shipNow());
+    $('phoneClock').textContent = clockTxt(new Date());
+    $('shipOffTxt').textContent = S.hourOffset ? fmtOff(S.hourOffset) + ' from phone' : 'Same as phone';
+  }
+  function setOffset(h) {
+    var wasToday = cur === TODAY;
+    S.hourOffset = Math.max(-72, Math.min(72, h));
+    TODAY = nowDay(); if (wasToday) cur = TODAY;
+    save(); renderShipClock();
+    toast('Today is ' + parse(TODAY).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }));
+  }
+  $('offHm').onclick = function () { setOffset(S.hourOffset - 1); };
+  $('offHp').onclick = function () { setOffset(S.hourOffset + 1); };
+  $('offDm').onclick = function () { setOffset(S.hourOffset - 24); };
+  $('offDp').onclick = function () { setOffset(S.hourOffset + 24); };
+  $('offReset').onclick = function () { setOffset(0); };
+  setInterval(function () {
+    if (!$('v-set').hidden) renderShipClock();
+    var t = nowDay(); if (t !== TODAY) { var was = cur === TODAY; TODAY = t; if (was) cur = t; if (!$('v-day').hidden) renderDay(); }
+  }, 30000);
+
   function renderSet() {
+    renderShipClock();
     var el = $('editList'); el.innerHTML = '';
     var hs = active();
     hs.forEach(function (h, i) {
@@ -553,7 +604,7 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
     try {
       var d = JSON.parse($('bText').value);
       if (!d || !d.days || !d.habits) throw 0;
-      S = d; migrate(); save(); $('bText').value = ''; $('bMsg').textContent = 'Restored'; applyRed(); renderSet();
+      S = d; migrate(); if (S.hourOffset == null) S.hourOffset = 0; TODAY = nowDay(); cur = TODAY; save(); $('bText').value = ''; $('bMsg').textContent = 'Restored'; applyRed(); renderSet();
     } catch (e) { $('bMsg').textContent = 'That doesn’t look like a backup. Paste the full copied text.'; }
   };
 
@@ -562,7 +613,7 @@ nav.tabs button[aria-selected="true"] { color: var(--accent); }
   function show(v) {
     ['day', 'trends', 'set'].forEach(function (x) { $('v-' + x).hidden = x !== v; });
     tabs.forEach(function (t) { t.setAttribute('aria-selected', t.dataset.v === v); });
-    TODAY = key(new Date());
+    var t = nowDay(); if (t !== TODAY) { if (cur === TODAY) cur = t; TODAY = t; }
     if (v === 'day') renderDay(); else if (v === 'trends') renderTrends(); else renderSet();
     window.scrollTo(0, 0);
   }
