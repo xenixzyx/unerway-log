@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Self-Care Log</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Habits">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0c1116">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<style>
+/* Same look as Underway Log: system fonts, dark by default, red light mode for when the boat is rigged for red. */
+:root {
+  --bg: #edf0f2; --surface: #ffffff; --sunk: #e2e7ea; --fg: #142029; --muted: #5b6975; --line: #d2d9de;
+  --accent: #1d6a86; --accent-fg: #ffffff; --good: #2f8a57; --warn: #b98a12; --danger: #b23a2e;
+  --mood: #b8407a; --energy: #b98a12;
+  --font-ui: -apple-system, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif;
+  --font-num: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1116; --surface: #151d25; --sunk: #0f161c; --fg: #e3e9ee; --muted: #8796a3; --line: #25313b;
+    --accent: #4fa7c6; --accent-fg: #05131a; --good: #4fbf80; --warn: #e0b443; --danger: #e46a5d;
+    --mood: #e57aa9; --energy: #e0b443; color-scheme: dark;
+  }
+}
+:root.red {
+  --bg: #000; --surface: #110000; --sunk: #080000; --fg: #ff3b2f; --muted: #a8261c; --line: #3a0905;
+  --accent: #d01b0f; --accent-fg: #000; --good: #ff3b2f; --warn: #d01b0f; --danger: #ff6a5f;
+  --mood: #ff3b2f; --energy: #a8261c; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 16px; -webkit-tap-highlight-color: transparent; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
+.wrap { max-width: 600px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: env(safe-area-inset-top, 0px) calc(96px + env(safe-area-inset-bottom, 0px)); }
+button, input, textarea { font: inherit; color: inherit; }
+button { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; min-height: 44px; padding: 0 14px; cursor: pointer; }
+button:active { transform: scale(0.98); }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn-primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
+input[type=text] { background: var(--sunk); border: 1px solid var(--line); border-radius: 10px; min-height: 44px; padding: 0 10px; min-width: 0; width: 100%; }
+textarea { background: var(--sunk); border: 1px solid var(--line); border-radius: 10px; width: 100%; padding: 10px; min-height: 80px; resize: vertical; line-height: 1.45; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.muted { color: var(--muted); font-size: 0.85rem; }
+
+.datebar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--bg); padding-block: 10px 8px; display: flex; align-items: center; gap: 8px; }
+.datebar h1 { margin: 0; font-size: 1.2rem; flex: 1; min-width: 0; text-align: center; }
+.datebar h1 .sub { display: block; font-size: 0.72rem; color: var(--muted); font-weight: 400; letter-spacing: 0.06em; text-transform: uppercase; }
+.icon-btn { min-width: 44px; padding: 0; }
+.icon-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+
+.view { display: flex; flex-direction: column; gap: 14px; padding-top: 6px; }
+section.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+.card h2 { margin: 0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; display: flex; align-items: center; gap: 8px; }
+.card h2 .right { margin-left: auto; font-family: var(--font-num); font-size: 0.85rem; letter-spacing: 0; text-transform: none; color: var(--muted); }
+.big { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 2rem; line-height: 1; }
+.big small { font-size: 0.9rem; color: var(--muted); }
+
+/* Habit checklist */
+.progress { height: 8px; background: var(--sunk); border-radius: 99px; overflow: hidden; }
+.progress i { display: block; height: 100%; background: var(--good); border-radius: 99px; transition: width .2s; }
+.habits { display: flex; flex-direction: column; gap: 8px; }
+.habit { display: flex; align-items: center; gap: 12px; text-align: left; min-height: 54px; padding: 0 14px; font-size: 1rem; }
+.habit .box { width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--line); flex: none; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+.habit .name { flex: 1; min-width: 0; }
+.habit .streak { font-family: var(--font-num); font-size: 0.8rem; color: var(--muted); }
+.habit.on { border-color: var(--good); }
+.habit.on .box { background: var(--good); border-color: var(--good); color: var(--accent-fg); }
+.habit.on .name { color: var(--muted); }
+
+/* 1–5 rating */
+.rate { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.rate button { padding: 0; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 1.1rem; gap: 0; }
+.rate button small { font-size: 0.62rem; color: var(--muted); }
+.rate button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.rate button[aria-pressed="true"] small { color: var(--accent-fg); }
+.rlabel { font-size: 0.78rem; color: var(--muted); }
+
+/* Trends */
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
+svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+svg.chart text { font-family: var(--font-ui); font-size: 10px; fill: var(--muted); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.78rem; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat { background: var(--sunk); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 4px; }
+.stat b { font-family: var(--font-num); font-size: 1.3rem; }
+.stat span { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.impact { display: flex; flex-direction: column; gap: 10px; }
+.imp { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; }
+.imp .n { font-size: 0.9rem; }
+.imp .v { font-family: var(--font-num); font-size: 0.85rem; }
+.imp .track { grid-column: 1 / -1; position: relative; height: 10px; background: var(--sunk); border-radius: 99px; }
+.imp .track::after { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--muted); }
+.imp .track i { position: absolute; top: 0; bottom: 0; border-radius: 99px; }
+.imp .sub { grid-column: 1 / -1; font-size: 0.72rem; color: var(--muted); }
+.heat { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.heat div { aspect-ratio: 1; border-radius: 4px; background: var(--sunk); }
+.heat .hd { background: none; aspect-ratio: auto; font-size: 0.65rem; color: var(--muted); text-align: center; }
+.heat .td { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* Habit editor */
+.edit { display: flex; gap: 6px; align-items: center; }
+.edit input { flex: 1; }
+.edit button { min-width: 44px; padding: 0; }
+
+nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; background: var(--surface); border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(3, 1fr); padding: 6px max(16px, env(safe-area-inset-left, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-right, 0px)); }
+nav.tabs button { border: none; background: none; min-height: 48px; font-size: 0.85rem; color: var(--muted); font-weight: 600; }
+nav.tabs button[aria-selected="true"] { color: var(--accent); }
+.toast { position: fixed; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 99px; font-size: 0.85rem; z-index: 40; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- TODAY -->
+  <div id="v-day" class="view">
+    <div class="datebar">
+      <button type="button" class="icon-btn" id="prev" aria-label="Previous day">‹</button>
+      <h1><span class="sub" id="dSub">Today</span><span id="dTitle"></span></h1>
+      <button type="button" class="icon-btn" id="next" aria-label="Next day">›</button>
+    </div>
+
+    <section class="card">
+      <h2>Self-care <span class="right" id="doneCount"></span></h2>
+      <div class="progress"><i id="bar"></i></div>
+      <div class="habits" id="habitList"></div>
+    </section>
+
+    <section class="card">
+      <h2>How I feel</h2>
+      <div class="rlabel">Mood</div>
+      <div class="rate" id="rMood"></div>
+      <div class="rlabel">Energy</div>
+      <div class="rate" id="rEnergy"></div>
+      <textarea id="note" placeholder="Anything worth noting today? (optional)"></textarea>
+    </section>
+  </div>
+
+  <!-- TRENDS -->
+  <div id="v-trends" class="view" hidden>
+    <div class="datebar"><h1>Trends</h1></div>
+    <div class="seg" id="range">
+      <button type="button" data-n="14">2 weeks</button>
+      <button type="button" data-n="30" aria-pressed="true">30 days</button>
+      <button type="button" data-n="90">90 days</button>
+    </div>
+
+    <section class="card">
+      <h2>At a glance</h2>
+      <div class="stats" id="stats"></div>
+    </section>
+
+    <section class="card">
+      <h2>Habits done vs how I felt</h2>
+      <div id="lineChart"></div>
+      <div class="legend"><span><i style="background:var(--good);opacity:.55"></i>Habits done %</span><span><i style="background:var(--mood)"></i>Mood</span><span><i style="background:var(--energy)"></i>Energy</span></div>
+    </section>
+
+    <section class="card">
+      <h2>More self-care, better days?</h2>
+      <p class="muted" style="margin:0">Your average mood on days you got through a little, some, or most of your list.</p>
+      <div id="bucketChart"></div>
+    </section>
+
+    <section class="card">
+      <h2>What each habit does for you</h2>
+      <p class="muted" style="margin:0">Average mood on days you did it, compared with days you skipped it. Right of the line means you felt better on days you did it.</p>
+      <div class="impact" id="impact"></div>
+    </section>
+
+    <section class="card">
+      <h2>Last 12 weeks</h2>
+      <div class="heat" id="heat"></div>
+      <div class="legend"><span>Brighter = more of your list done</span></div>
+    </section>
+  </div>
+
+  <!-- HABITS / SETTINGS -->
+  <div id="v-set" class="view" hidden>
+    <div class="datebar"><h1>Habits</h1></div>
+    <section class="card">
+      <h2>My habits</h2>
+      <div id="editList" class="habits"></div>
+      <div class="edit"><input type="text" id="newHabit" placeholder="Add a habit" maxlength="40"><button type="button" class="btn-primary" id="addHabit" aria-label="Add habit">+</button></div>
+      <p class="muted" style="margin:0">Removing a habit hides it but keeps its history in your trends.</p>
+    </section>
+    <section class="card">
+      <h2>Display</h2>
+      <div class="row"><button type="button" id="redBtn" aria-pressed="false">Red light mode</button></div>
+    </section>
+    <section class="card">
+      <h2>Backup</h2>
+      <p class="muted" style="margin:0">Your log lives only on this phone. Copy a backup now and then and paste it in Notes, or email it to yourself.</p>
+      <div class="row"><button type="button" id="bCopy">Copy backup</button></div>
+      <textarea id="bText" placeholder="Paste a backup here to restore it"></textarea>
+      <div class="row"><button type="button" id="bRestore">Restore from pasted backup</button><span class="muted" id="bMsg"></span></div>
+    </section>
+  </div>
+</div>
+
+<nav class="tabs" role="tablist">
+  <button type="button" role="tab" data-v="day" aria-selected="true">Today</button>
+  <button type="button" role="tab" data-v="trends" aria-selected="false">Trends</button>
+  <button type="button" role="tab" data-v="set" aria-selected="false">Habits</button>
+</nav>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function () {
+  var KEY = 'selfcare-log-v1';
+  var $ = function (id) { return document.getElementById(id); };
+  var MOODS = ['Awful', 'Low', 'Okay', 'Good', 'Great'];
+  var ENERGY = ['Drained', 'Tired', 'Okay', 'Good', 'Charged'];
+
+  function fresh() {
+    var names = ['Workout', 'Slept 7+ hours', 'Hit water goal', 'Read 10 min', 'Shower + skincare', 'No doomscrolling', 'Tidied my rack'];
+    return { habits: names.map(function (n, i) { return { id: 'h' + i, name: n, off: false }; }), days: {}, red: false, next: names.length };
+  }
+  var S;
+  try { S = JSON.parse(localStorage.getItem(KEY)) || fresh(); } catch (e) { S = fresh(); }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { toast('Could not save'); } }
+
+  /* ---------- Dates ---------- */
+  function key(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function parse(k) { var p = k.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function addDays(k, n) { var d = parse(k); d.setDate(d.getDate() + n); return key(d); }
+  var TODAY = key(new Date());
+  var cur = TODAY;
+  function day(k) { return S.days[k] || (S.days[k] = { done: {}, mood: 0, energy: 0, note: '' }); }
+  function peek(k) { return S.days[k]; }
+  function active() { return S.habits.filter(function (h) { return !h.off; }); }
+
+  /* Share of habits done that day, out of the habits active now */
+  function pct(k) {
+    var d = peek(k), hs = active();
+    if (!d || !hs.length) return null;
+    var any = Object.keys(d.done).some(function (id) { return d.done[id]; });
+    if (!any && !d.mood) return null;
+    var n = hs.filter(function (h) { return d.done[h.id]; }).length;
+    return n / hs.length;
+  }
+  function streak(id) {
+    var k = peek(TODAY) && peek(TODAY).done[id] ? TODAY : addDays(TODAY, -1), n = 0;
+    while (peek(k) && peek(k).done[id]) { n++; k = addDays(k, -1); }
+    return n;
+  }
+
+  function toast(msg) { var t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(function () { t.hidden = true; }, 1600); }
+
+  /* ---------- Today ---------- */
+  function renderDay() {
+    var d = parse(cur);
+    var diff = Math.round((parse(TODAY) - d) / 864e5);
+    $('dSub').textContent = diff === 0 ? 'Today' : diff === 1 ? 'Yesterday' : d.toLocaleDateString(undefined, { weekday: 'long' });
+    $('dTitle').textContent = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    $('next').disabled = cur >= TODAY;
+    $('next').style.opacity = cur >= TODAY ? 0.3 : 1;
+
+    var dd = peek(cur) || { done: {}, mood: 0, energy: 0, note: '' };
+    var hs = active(), n = 0, list = $('habitList');
+    list.innerHTML = '';
+    hs.forEach(function (h) {
+      var on = !!dd.done[h.id]; if (on) n++;
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'habit' + (on ? ' on' : '');
+      b.setAttribute('aria-pressed', on);
+      var s = streak(h.id);
+      b.innerHTML = '<span class="box">' + (on ? '✓' : '') + '</span><span class="name"></span>' + (s > 1 ? '<span class="streak">' + s + ' day streak</span>' : '');
+      b.querySelector('.name').textContent = h.name;
+      b.onclick = function () { var x = day(cur); x.done[h.id] = !x.done[h.id]; save(); renderDay(); };
+      list.appendChild(b);
+    });
+    if (!hs.length) list.innerHTML = '<p class="muted" style="margin:0">No habits yet. Add some on the Habits tab.</p>';
+    $('doneCount').textContent = n + ' / ' + hs.length;
+    $('bar').style.width = hs.length ? (n / hs.length * 100) + '%' : '0';
+
+    rate($('rMood'), MOODS, dd.mood, function (v) { day(cur).mood = v; });
+    rate($('rEnergy'), ENERGY, dd.energy, function (v) { day(cur).energy = v; });
+    $('note').value = dd.note || '';
+  }
+  function rate(el, labels, val, set) {
+    el.innerHTML = '';
+    labels.forEach(function (l, i) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.setAttribute('aria-pressed', val === i + 1);
+      b.innerHTML = (i + 1) + '<small>' + l + '</small>';
+      b.onclick = function () { set(val === i + 1 ? 0 : i + 1); save(); renderDay(); };
+      el.appendChild(b);
+    });
+  }
+  $('note').oninput = function () { day(cur).note = this.value; save(); };
+  $('prev').onclick = function () { cur = addDays(cur, -1); renderDay(); };
+  $('next').onclick = function () { if (cur < TODAY) { cur = addDays(cur, 1); renderDay(); } };
+
+  /* ---------- Trends ---------- */
+  var RANGE = 30;
+  function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+  function avg(a) { return a.length ? a.reduce(function (s, x) { return s + x; }, 0) / a.length : null; }
+
+  function renderTrends() {
+    var keys = [];
+    for (var i = RANGE - 1; i >= 0; i--) keys.push(addDays(TODAY, -i));
+
+    // At a glance
+    var logged = keys.filter(function (k) { return pct(k) !== null; });
+    var avgPct = avg(logged.map(pct));
+    var moods = keys.map(function (k) { return peek(k) && peek(k).mood; }).filter(Boolean);
+    var best = active().map(function (h) { return { h: h, s: streak(h.id) }; }).sort(function (a, b) { return b.s - a.s; })[0];
+    $('stats').innerHTML =
+      '<div class="stat"><b>' + (avgPct === null ? '–' : Math.round(avgPct * 100) + '%') + '</b><span>Avg done</span></div>' +
+      '<div class="stat"><b>' + (moods.length ? avg(moods).toFixed(1) : '–') + '</b><span>Avg mood</span></div>' +
+      '<div class="stat"><b>' + logged.length + '</b><span>Days logged</span></div>';
+
+    lineChart(keys);
+    bucketChart(keys);
+    impact(keys);
+    heat();
+  }
+
+  function lineChart(keys) {
+    var W = 340, H = 170, L = 26, R = 26, T = 8, B = 20, iw = W - L - R, ih = H - T - B;
+    var n = keys.length, bw = iw / n;
+    var good = css('--good'), mood = css('--mood'), en = css('--energy'), line = css('--line');
+    var s = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Habits done and mood by day">';
+    for (var g = 0; g <= 4; g++) {
+      var y = T + ih - ih * g / 4;
+      s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y + '" y2="' + y + '" stroke="' + line + '" stroke-width="1"/>';
+      s += '<text x="' + (L - 4) + '" y="' + (y + 3) + '" text-anchor="end">' + (g * 25) + '%</text>';
+      s += '<text x="' + (W - R + 4) + '" y="' + (y + 3) + '">' + (g + 1) + '</text>';
+    }
+    keys.forEach(function (k, i) {
+      var p = pct(k); if (p === null) return;
+      var h = Math.max(p * ih, 1.5);
+      s += '<rect x="' + (L + i * bw + bw * 0.15) + '" y="' + (T + ih - h) + '" width="' + (bw * 0.7) + '" height="' + h + '" rx="1.5" fill="' + good + '" opacity=".55"/>';
+    });
+    function path(field, color) {
+      var d = '', pts = '';
+      keys.forEach(function (k, i) {
+        var v = peek(k) && peek(k)[field]; if (!v) return;
+        var x = L + i * bw + bw / 2, y = T + ih - ih * (v - 1) / 4;
+        d += (d ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
+        pts += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="2.5" fill="' + color + '"/>';
+      });
+      return d ? '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' + pts : '';
+    }
+    s += path('energy', en) + path('mood', mood);
+    var step = Math.ceil(n / 6);
+    keys.forEach(function (k, i) {
+      if ((n - 1 - i) % step) return;
+      var d = parse(k);
+      s += '<text x="' + (L + i * bw + bw / 2) + '" y="' + (H - 4) + '" text-anchor="middle">' + (d.getMonth() + 1) + '/' + d.getDate() + '</text>';
+    });
+    s += '</svg>';
+    $('lineChart').innerHTML = s;
+  }
+
+  function bucketChart(keys) {
+    var b = [[], [], []];
+    keys.forEach(function (k) {
+      var p = pct(k), m = peek(k) && peek(k).mood;
+      if (p === null || !m) return;
+      b[p < 0.34 ? 0 : p < 0.67 ? 1 : 2].push(m);
+    });
+    var labels = ['Under a third', 'A third to two thirds', 'Two thirds or more'];
+    var W = 340, H = 150, L = 8, B = 34, T = 18, ih = H - T - B, bw = (W - L * 2) / 3;
+    var mood = css('--mood'), sunk = css('--sunk');
+    var s = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Average mood by how much of the list was done">';
+    b.forEach(function (arr, i) {
+      var a = avg(arr), x = L + i * bw + bw * 0.18, w = bw * 0.64;
+      s += '<rect x="' + x + '" y="' + T + '" width="' + w + '" height="' + ih + '" rx="6" fill="' + sunk + '"/>';
+      if (a !== null) {
+        var h = ih * a / 5;
+        s += '<rect x="' + x + '" y="' + (T + ih - h) + '" width="' + w + '" height="' + h + '" rx="6" fill="' + mood + '"/>';
+        s += '<text x="' + (x + w / 2) + '" y="' + (T + ih - h - 5) + '" text-anchor="middle" style="font-size:12px;font-weight:600;fill:var(--fg)">' + a.toFixed(1) + '</text>';
+      } else {
+        s += '<text x="' + (x + w / 2) + '" y="' + (T + ih / 2) + '" text-anchor="middle">no days</text>';
+      }
+      s += '<text x="' + (x + w / 2) + '" y="' + (H - 18) + '" text-anchor="middle">' + labels[i] + '</text>';
+      s += '<text x="' + (x + w / 2) + '" y="' + (H - 5) + '" text-anchor="middle">' + arr.length + ' day' + (arr.length === 1 ? '' : 's') + '</text>';
+    });
+    $('bucketChart').innerHTML = s + '</svg>';
+  }
+
+  function impact(keys) {
+    var out = [], el = $('impact');
+    S.habits.forEach(function (h) {
+      var yes = [], no = [];
+      keys.forEach(function (k) {
+        var d = peek(k); if (!d || !d.mood) return;
+        (d.done[h.id] ? yes : no).push(d.mood);
+      });
+      if (!yes.length && !no.length) return;
+      if (h.off && !yes.length) return;
+      out.push({ h: h, yes: yes, no: no, diff: (yes.length >= 3 && no.length >= 3) ? avg(yes) - avg(no) : null });
+    });
+    out.sort(function (a, b) { return (b.diff === null ? -9 : b.diff) - (a.diff === null ? -9 : a.diff); });
+    if (!out.length) { el.innerHTML = '<p class="muted" style="margin:0">Log your mood for a few days and this fills in.</p>'; return; }
+    el.innerHTML = '';
+    out.forEach(function (o) {
+      var row = document.createElement('div'); row.className = 'imp';
+      var txt, bar = '';
+      if (o.diff === null) {
+        txt = '<span class="v muted">need more days</span>';
+        var need = Math.max(0, 3 - o.yes.length) + Math.max(0, 3 - o.no.length);
+        bar = '<div class="sub">Needs at least 3 done days and 3 skipped days with a mood logged (' + o.yes.length + ' done, ' + o.no.length + ' skipped so far).</div>';
+      } else {
+        var d = o.diff, w = Math.min(Math.abs(d) / 2, 1) * 50;
+        var color = d >= 0 ? 'var(--good)' : 'var(--danger)';
+        txt = '<span class="v" style="color:' + color + '">' + (d >= 0 ? '+' : '−') + Math.abs(d).toFixed(1) + ' mood</span>';
+        bar = '<div class="track"><i style="background:' + color + ';' + (d >= 0 ? 'left:50%' : 'right:50%') + ';width:' + w + '%"></i></div>' +
+          '<div class="sub">' + avg(o.yes).toFixed(1) + ' on ' + o.yes.length + ' days done · ' + avg(o.no).toFixed(1) + ' on ' + o.no.length + ' days skipped</div>';
+      }
+      row.innerHTML = '<span class="n"></span>' + txt + bar;
+      row.querySelector('.n').textContent = o.h.name + (o.h.off ? ' (removed)' : '');
+      el.appendChild(row);
+    });
+  }
+
+  function heat() {
+    var el = $('heat'), good = css('--good');
+    var html = ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(function (d) { return '<div class="hd">' + d + '</div>'; }).join('');
+    var start = parse(addDays(TODAY, -83)); start.setDate(start.getDate() - start.getDay());
+    var k = key(start);
+    while (k <= TODAY || parse(k).getDay() !== 0) {
+      if (k > TODAY) { html += '<div style="background:none"></div>'; }
+      else {
+        var p = pct(k);
+        var st = p === null ? '' : 'background:color-mix(in srgb, ' + good + ' ' + Math.round(15 + p * 85) + '%, var(--sunk))';
+        html += '<div class="' + (k === TODAY ? 'td' : '') + '" style="' + st + '" title="' + k + (p === null ? '' : ': ' + Math.round(p * 100) + '%') + '"></div>';
+      }
+      k = addDays(k, 1);
+    }
+    el.innerHTML = html;
+  }
+
+  $('range').onclick = function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    RANGE = +b.dataset.n;
+    [].forEach.call(this.children, function (c) { c.setAttribute('aria-pressed', c === b); });
+    renderTrends();
+  };
+
+  /* ---------- Habits tab ---------- */
+  function renderSet() {
+    var el = $('editList'); el.innerHTML = '';
+    var hs = active();
+    hs.forEach(function (h, i) {
+      var r = document.createElement('div'); r.className = 'edit';
+      r.innerHTML = '<input type="text" maxlength="40" aria-label="Habit name"><button type="button" aria-label="Move up">↑</button><button type="button" aria-label="Remove">✕</button>';
+      var inp = r.querySelector('input'); inp.value = h.name;
+      inp.onchange = function () { var v = inp.value.trim(); if (v) { h.name = v; save(); } else inp.value = h.name; };
+      var bs = r.querySelectorAll('button');
+      bs[0].disabled = i === 0; bs[0].style.opacity = i === 0 ? 0.3 : 1;
+      bs[0].onclick = function () { var a = S.habits.indexOf(h), b = S.habits.indexOf(hs[i - 1]); S.habits[a] = hs[i - 1]; S.habits[b] = h; save(); renderSet(); };
+      bs[1].onclick = function () { if (confirm('Remove "' + h.name + '"? Its history stays in your trends.')) { h.off = true; save(); renderSet(); } };
+      el.appendChild(r);
+    });
+  }
+  function addHabit() {
+    var v = $('newHabit').value.trim(); if (!v) return;
+    S.habits.push({ id: 'h' + (S.next++), name: v, off: false });
+    $('newHabit').value = ''; save(); renderSet(); toast('Added');
+  }
+  $('addHabit').onclick = addHabit;
+  $('newHabit').onkeydown = function (e) { if (e.key === 'Enter') addHabit(); };
+
+  function applyRed() { document.documentElement.classList.toggle('red', !!S.red); $('redBtn').setAttribute('aria-pressed', !!S.red); }
+  $('redBtn').onclick = function () { S.red = !S.red; save(); applyRed(); };
+
+  $('bCopy').onclick = function () {
+    var text = JSON.stringify(S);
+    try { navigator.clipboard.writeText(text).then(function () { toast('Backup copied'); }, function () { $('bText').value = text; $('bText').select(); toast('Select all and copy'); }); }
+    catch (e) { $('bText').value = text; $('bText').select(); }
+  };
+  $('bRestore').onclick = function () {
+    try {
+      var d = JSON.parse($('bText').value);
+      if (!d || !d.days || !d.habits) throw 0;
+      S = d; save(); $('bText').value = ''; $('bMsg').textContent = 'Restored'; applyRed(); renderSet();
+    } catch (e) { $('bMsg').textContent = 'That doesn’t look like a backup. Paste the full copied text.'; }
+  };
+
+  /* ---------- Tabs ---------- */
+  var tabs = document.querySelectorAll('nav.tabs button');
+  function show(v) {
+    ['day', 'trends', 'set'].forEach(function (x) { $('v-' + x).hidden = x !== v; });
+    tabs.forEach(function (t) { t.setAttribute('aria-selected', t.dataset.v === v); });
+    TODAY = key(new Date());
+    if (v === 'day') renderDay(); else if (v === 'trends') renderTrends(); else renderSet();
+    window.scrollTo(0, 0);
+  }
+  tabs.forEach(function (t) { t.onclick = function () { show(t.dataset.v); }; });
+
+  applyRed();
+  show('day');
+  if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) navigator.serviceWorker.register('sw.js').catch(function () {});
+})();
+</script>
+</body>
+</html>
