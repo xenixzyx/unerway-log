@@ -2066,7 +2066,7 @@ svg.cy .ah { fill: var(--cat, var(--accent)); }
   function load(cb) {
     if (A) return cb();
     if (loading) return; loading = true;
-    fetch('articles.json').then(function (r) { return r.json(); }).then(function (d) {
+    fetch('articles.json?v=' + Date.now()).then(function (r) { return r.json(); }).then(function (d) {
       A = d.filter(function (a) { return a && a.id && a.title && a.blocks; }); loading = false; cb();
     }).catch(function () { loading = false; $('alist').innerHTML = '<div class="empty-read">Couldn’t load the library. Open the app once with signal so it can save the articles.</div>'; });
   }
@@ -2298,7 +2298,8 @@ svg.cy .ah { fill: var(--cat, var(--accent)); }
     $('reader').addEventListener('touchend', function (e) { if (x0 === null) return; var t = e.changedTouches[0]; if (t.clientX - x0 > 80 && Math.abs(t.clientY - y0) < 60) closeReader(); x0 = null; }, { passive: true });
   })();
 
-  window.RD = { reload: function () { try { R = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { R = {}; } R.read = R.read || {}; R.saved = R.saved || {}; R.pos = R.pos || {}; }, render: renderLib, open: function (id) { load(function () { openArticle(id); }); }, state: function () { return R; } };
+  function renderFresh() { if (A && !A.length) A = null; renderLib(); } // an empty library is re-checked each time the tab opens
+  window.RD = { reload: function () { try { R = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { R = {}; } R.read = R.read || {}; R.saved = R.saved || {}; R.pos = R.pos || {}; }, render: renderFresh, open: function (id) { load(function () { openArticle(id); }); }, state: function () { return R; } };
 })();
 
 </script>
